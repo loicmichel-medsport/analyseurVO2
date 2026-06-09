@@ -1,0 +1,4491 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VO₂ — Épreuve d’Effort</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+         background:#0f1117;color:#e2e8f0;min-height:100vh;padding:20px}
+    header{text-align:center;margin-bottom:20px}
+    header h1{font-size:1.5rem;font-weight:700;color:#fff}
+    header p{color:#94a3b8;font-size:.88rem;margin-top:4px}
+
+    /* ---- Drop zone ---- */
+    #dropZone{
+      max-width:700px;margin:0 auto 24px;
+      border:2px dashed #334155;border-radius:16px;
+      padding:48px 24px;text-align:center;
+      cursor:pointer;transition:all .2s;background:#1a2233;
+    }
+    #dropZone.dragover{border-color:#3b82f6;background:#1a2d4a}
+    #dropZone.has-files{padding:16px 24px;max-width:none}
+    .drop-icon{font-size:2.5rem;margin-bottom:12px}
+    .drop-title{font-size:1rem;font-weight:600;color:#e2e8f0;margin-bottom:6px}
+    .drop-sub{font-size:.82rem;color:#64748b}
+    #dropZone .add-more{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:5px 14px;border-radius:14px;border:1.5px solid #334155;
+      background:transparent;color:#94a3b8;cursor:pointer;font-size:.8rem;
+      transition:all .15s;margin-top:10px
+    }
+    #dropZone .add-more:hover{border-color:#3b82f6;color:#3b82f6}
+    #fileInput{display:none}
+
+    /* ---- File list ---- */
+    #fileList{
+      display:flex;flex-wrap:wrap;gap:8px;
+      max-width:1400px;margin:0 auto 16px;align-items:center
+    }
+    .file-pill{
+      display:inline-flex;align-items:center;gap:7px;
+      padding:5px 10px 5px 8px;border-radius:20px;border:2px solid;
+      cursor:pointer;font-size:.8rem;font-weight:600;transition:all .15s;
+      background:transparent;user-select:none
+    }
+    .file-pill.active{background:var(--fc) !important;color:#0f1117 !important;border-color:var(--fc) !important}
+    .file-pill .pill-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .file-pill .pill-eye{
+      width:18px;height:18px;display:flex;align-items:center;justify-content:center;
+      border-radius:50%;font-size:.7rem;opacity:.6;margin-left:2px
+    }
+    .file-pill .pill-eye:hover{opacity:1;background:rgba(255,255,255,.15)}
+    .file-pill.hidden-file{opacity:.4}
+    .file-pill .pill-remove{
+      width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+      border-radius:50%;font-size:.65rem;opacity:.5;margin-left:1px
+    }
+    .file-pill .pill-remove:hover{opacity:1;background:rgba(239,68,68,.3)}
+
+    /* ---- Stats ---- */
+    .stats-row{
+      display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+      gap:10px;max-width:1400px;margin:0 auto 16px
+    }
+    .stat-card{
+      background:#1e2535;border-radius:10px;padding:10px 12px;
+      border:1px solid #2d3748;text-align:center
+    }
+    .stat-label{font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.06em}
+    .stat-value{font-size:1.35rem;font-weight:700;margin-top:2px}
+    .stat-unit{font-size:.7rem;color:#64748b}
+
+    /* ---- Marker panel ---- */
+    .marker-panel{
+      background:#1a2233;border:1px solid #2d3748;border-radius:12px;
+      padding:12px 16px;max-width:1400px;margin:0 auto 16px;
+      display:flex;flex-direction:column;gap:10px
+    }
+    .marker-panel h3{
+      font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;
+      color:#64748b;margin-bottom:8px
+    }
+    .marker-block{
+      background:#141925;border:1px solid #2d3748;border-radius:8px;
+      padding:10px 14px;flex:1;min-width:0
+    }
+    .marker-block-title{
+      font-size:.68rem;color:#475569;text-transform:uppercase;
+      letter-spacing:.08em;margin-bottom:8px;font-weight:600
+    }
+    body.light .marker-block{background:#f8fafc;border-color:#e2e8f0}
+    body.light .marker-block-title{color:#9ca3af}
+    .marker-btns{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+    .mkey-btn{
+      padding:6px 16px;border-radius:18px;border:2px solid;
+      cursor:pointer;font-size:.8rem;font-weight:700;
+      transition:all .15s;background:transparent
+    }
+    .mkey-btn.active{color:#0f1117!important}
+    .mkey-btn .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px}
+    #cancelMarker{
+      padding:4px 11px;border-radius:14px;border:1.5px solid #475569;
+      background:transparent;color:#94a3b8;cursor:pointer;font-size:.77rem;transition:all .15s
+    }
+    #cancelMarker:hover{background:#2d3748}
+    .mkey-hint{font-size:.75rem;color:#475569;flex:1;min-width:0}
+    .marker-sep{width:1px;height:22px;background:#334155;display:inline-block;margin:0 5px;flex-shrink:0}
+    .marker-section-label{font-size:.68rem;color:#475569;text-transform:uppercase;
+      letter-spacing:.07em;margin-right:2px;white-space:nowrap}
+    .pt-profil-btn{
+      padding:4px 12px;border-radius:14px;border:1.5px solid #334155;
+      background:transparent;color:#64748b;cursor:pointer;font-size:.77rem;font-weight:600;
+      transition:all .15s
+    }
+    .pt-profil-btn:hover{border-color:#94a3b8;color:#94a3b8}
+    .pt-profil-btn.active{border-color:#3b82f6;background:#3b82f6;color:#fff}
+    body.light .pt-profil-btn{border-color:#d1d5db;color:#9ca3af}
+    body.light .pt-profil-btn:hover{border-color:#6b7280;color:#374151}
+    body.light .pt-profil-btn.active{border-color:#3b82f6;background:#3b82f6;color:#fff}
+    /* ── Groupes du panneau marqueurs ── */
+    .mkgroup{margin-bottom:11px}
+    .mkgroup:last-child{margin-bottom:0}
+    .mkgroup-label{
+      display:block;font-size:.63rem;color:#475569;
+      text-transform:uppercase;letter-spacing:.09em;font-weight:700;margin-bottom:6px
+    }
+    body.light .mkgroup-label{color:#9ca3af}
+    .mkgroup-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    .mkfooter{
+      margin-top:11px;padding-top:9px;border-top:1px solid #1e2d3d;
+      display:flex;align-items:center;gap:10px;flex-wrap:wrap
+    }
+    body.light .mkfooter{border-top-color:#e2e8f0}
+    .btn-patient{
+      display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;
+      padding:8px 12px;border-radius:8px;border:1.5px solid #334155;
+      background:transparent;color:#94a3b8;cursor:pointer;
+      font-size:.82rem;font-weight:600;transition:all .15s;margin-bottom:11px
+    }
+    .btn-patient:hover{border-color:#64748b;color:#e2e8f0;background:#1e2d3d22}
+    body.light .btn-patient{border-color:#d1d5db;color:#6b7280}
+    body.light .btn-patient:hover{border-color:#9ca3af;color:#374151;background:#f1f5f9}
+    #autoSvBtn{
+      padding:6px 15px;border-radius:18px;border:2px solid #3b82f6;
+      background:transparent;color:#3b82f6;cursor:pointer;font-size:.8rem;font-weight:700;
+      transition:all .15s;display:inline-flex;align-items:center;gap:5px
+    }
+    #autoSvBtn:hover{background:#3b82f622;border-color:#60a5fa;color:#60a5fa}
+    body.light #autoSvBtn{border-color:#2563eb;color:#2563eb}
+    body.light #autoSvBtn:hover{background:#eff6ff;border-color:#3b82f6;color:#3b82f6}
+    #autoSlBtn{
+      padding:6px 15px;border-radius:18px;border:2px solid #7c3aed;
+      background:transparent;color:#7c3aed;cursor:pointer;font-size:.8rem;font-weight:700;
+      transition:all .15s;display:inline-flex;align-items:center;gap:5px
+    }
+    #autoSlBtn:hover{background:#7c3aed22;border-color:#a78bfa;color:#a78bfa}
+    body.light #autoSlBtn{border-color:#7c3aed;color:#7c3aed}
+    body.light #autoSlBtn:hover{background:#f5f3ff;border-color:#7c3aed;color:#6d28d9}
+
+    /* ---- Threshold table ---- */
+    #thresholdSummary{max-width:1400px;margin:0 auto 16px;display:none}
+    #thresholdSummary table{
+      width:100%;border-collapse:collapse;background:#1a2233;
+      border-radius:10px;overflow:hidden;border:1px solid #2d3748;font-size:.8rem
+    }
+    #thresholdSummary th{
+      padding:7px 10px;background:#1e2d3d;color:#94a3b8;font-weight:600;
+      text-align:left;border-bottom:1px solid #2d3748
+    }
+    #thresholdSummary td{padding:6px 10px;border-bottom:1px solid #1e2535}
+    #thresholdSummary tr:last-child td{border-bottom:none}
+    .del-btn{
+      padding:1px 7px;border-radius:9px;border:1px solid #475569;
+      background:transparent;color:#94a3b8;cursor:pointer;font-size:.7rem
+    }
+    .del-btn:hover{background:#ef444422;border-color:#ef4444;color:#ef4444}
+    .val-sv1{color:#f97316;font-weight:600}
+    .val-sv2{color:#ef4444;font-weight:600}
+    .val-vo2m{color:#a855f7;font-weight:600}
+    /* Cellules tableau seuils — classes thème-compatibles */
+    .sum-lbl{color:#94a3b8}
+    .sum-pct-lbl{border-top:2px solid #2d3748;font-weight:700;color:#e2e8f0}
+    .sum-pct-val{border-top:2px solid #2d3748;font-weight:700;font-size:.95rem}
+    .sum-empty{color:#475569}
+
+    /* ---- Critères de maximalité ---- */
+    #maxCriteriaSection{max-width:1400px;margin:0 auto 16px;display:none}
+    .max-crit-header{
+      display:flex;align-items:center;gap:8px;
+      background:#1e2535;border:1px solid #2d3748;border-radius:8px;
+      padding:8px 14px;cursor:pointer;font-size:.82rem;font-weight:600;
+      color:#94a3b8;transition:all .15s;width:100%;text-align:left;
+    }
+    .max-crit-header:hover{border-color:#3b82f6;color:#e2e8f0}
+    .max-crit-header .arrow{transition:transform .2s;display:inline-block;font-size:.7rem}
+    .max-crit-header.open .arrow{transform:rotate(90deg)}
+    #maxCriteriaScore{font-size:.78rem;font-weight:700;margin-left:4px}
+    #maxCriteriaWrap{
+      margin-top:6px;border:1px solid #2d3748;border-radius:10px;
+      overflow:hidden;display:none
+    }
+    #maxCriteriaTable{width:100%;border-collapse:collapse;font-size:.8rem;background:#1a2233}
+    #maxCriteriaTable thead th{
+      padding:7px 12px;background:#1e2d3d;color:#94a3b8;font-weight:600;
+      text-align:left;border-bottom:2px solid #2d3748;white-space:nowrap
+    }
+    #maxCriteriaTable thead th:last-child{text-align:center}
+    #maxCriteriaTable tbody td{padding:7px 12px;border-bottom:1px solid #1e2535;color:#cbd5e1}
+    #maxCriteriaTable tbody tr:last-child td{border-bottom:none}
+    #maxCriteriaTable tbody tr:hover{background:#1e2d3d}
+    .crit-name{color:#e2e8f0!important;font-weight:500}
+    .crit-note{color:#475569;font-size:.72rem;font-weight:400}
+    .crit-threshold{color:#64748b!important;white-space:nowrap}
+    .crit-value{font-weight:600;font-variant-numeric:tabular-nums}
+    .crit-ok{color:#10b981!important;font-weight:800;font-size:1rem;text-align:center}
+    .crit-fail{color:#ef4444!important;font-weight:800;font-size:1rem;text-align:center}
+    .crit-unknown{color:#475569!important;font-weight:600;font-size:.85rem;text-align:center}
+
+    body.light .max-crit-header{background:#fff;border-color:#e2e8f0;color:#6b7280}
+    body.light .max-crit-header:hover{border-color:#3b82f6;color:#1e293b}
+    body.light #maxCriteriaWrap{border-color:#e2e8f0}
+    body.light #maxCriteriaTable{background:#fff}
+    body.light #maxCriteriaTable thead th{background:#f0f4f8;color:#6b7280;border-bottom-color:#e2e8f0}
+    body.light #maxCriteriaTable tbody td{color:#374151;border-bottom-color:#f1f5f9}
+    body.light #maxCriteriaTable tbody tr:nth-child(odd){background:#f8fafc}
+    body.light #maxCriteriaTable tbody tr:hover{background:#eff6ff}
+    body.light .crit-name{color:#1e293b!important}
+    body.light .crit-note{color:#9ca3af}
+    body.light .crit-threshold{color:#9ca3af!important}
+    body.light .crit-value{color:#374151}
+
+    /* ---- Graphiques complémentaires ---- */
+    #extraChartsSection{max-width:1400px;margin:12px auto 0}
+    #extraChartsWrap{margin-top:8px}
+    body.light .extra-crit-header{background:#fff;border-color:#e2e8f0;color:#6b7280}
+    body.light .extra-crit-header:hover{border-color:#3b82f6;color:#1e293b}
+
+    /* ---- Export PDF Modal ---- */
+    #exportModal{
+      position:fixed;inset:0;z-index:2000;
+      display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.65);backdrop-filter:blur(3px)
+    }
+    #exportModal.open{display:flex}
+    .epdf-box{
+      background:#1e2535;border:1px solid #2d3748;border-radius:16px;
+      width:min(900px,96vw);max-height:92vh;overflow-y:auto;
+      padding:22px 26px;box-shadow:0 24px 60px rgba(0,0,0,.5)
+    }
+    .epdf-box h2{font-size:1.05rem;font-weight:700;color:#e2e8f0;margin-bottom:4px}
+    .epdf-subtitle{font-size:.79rem;color:#64748b;margin-bottom:14px}
+    /* Two-column layout */
+    .epdf-columns{display:flex;gap:18px;align-items:flex-start}
+    @media(max-width:640px){.epdf-columns{flex-direction:column}}
+    .epdf-col-select{flex:0 0 46%;min-width:0}
+    .epdf-col-preview{flex:1;min-width:0}
+    .epdf-section-title{
+      font-size:.70rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+      color:#64748b;margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid #2d3748;
+      display:flex;align-items:center;gap:8px
+    }
+    .epdf-prev-hint{
+      font-size:.67rem;font-weight:400;text-transform:none;letter-spacing:0;
+      color:#475569;font-style:italic
+    }
+    /* Chart list — single column */
+    .epdf-chart-list{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+    .epdf-chart-item{
+      display:flex;align-items:center;justify-content:space-between;
+      background:#141925;border:1.5px solid #2d3748;border-radius:7px;
+      padding:5px 8px;gap:6px;transition:border-color .15s
+    }
+    .epdf-chart-item:has(input:checked){border-color:#3b82f680}
+    .epdf-chart-item label{
+      display:flex;align-items:center;gap:6px;
+      font-size:.79rem;color:#cbd5e1;cursor:pointer;flex:1;min-width:0
+    }
+    .epdf-chart-item input[type=checkbox]{
+      width:13px;height:13px;accent-color:#3b82f6;flex-shrink:0;cursor:pointer
+    }
+    .epdf-size-btns{display:flex;gap:3px;flex-shrink:0}
+    .epdf-size-btn{
+      padding:2px 7px;border-radius:8px;border:1.5px solid #334155;
+      background:transparent;color:#64748b;font-size:.69rem;cursor:pointer;
+      transition:all .15s;white-space:nowrap
+    }
+    .epdf-size-btn.active{background:#3b82f6;border-color:#3b82f6;color:#fff;font-weight:600}
+    .epdf-size-btn:disabled{opacity:.35;cursor:default}
+    /* Tables section */
+    .epdf-tables-col{display:flex;flex-direction:column;gap:4px}
+    .epdf-table-item{
+      display:flex;align-items:center;gap:7px;
+      background:#141925;border:1.5px solid #2d3748;border-radius:7px;
+      padding:6px 10px;font-size:.79rem;color:#cbd5e1;cursor:pointer;
+      transition:border-color .15s
+    }
+    .epdf-table-item:has(input:checked){border-color:#3b82f680}
+    .epdf-table-item input[type=checkbox]{
+      width:13px;height:13px;accent-color:#3b82f6;cursor:pointer
+    }
+    /* Preview list */
+    .epdf-prev-list{
+      display:flex;flex-direction:column;gap:3px;min-height:100px
+    }
+    .epdf-prev-item{
+      display:flex;align-items:center;gap:5px;
+      padding:3px 4px;border-radius:6px;cursor:grab;user-select:none;
+      border:1.5px solid transparent;transition:background .1s,border-color .1s
+    }
+    .epdf-prev-item:active{cursor:grabbing}
+    .epdf-prev-item:hover{background:#141925}
+    .epdf-prev-item.epdf-drag-over{border-color:#3b82f6;background:#1a2d4a}
+    .epdf-prev-item.epdf-dragging{opacity:.35}
+    .epdf-prev-handle{
+      color:#334155;font-size:1rem;cursor:grab;flex-shrink:0;line-height:1;
+      padding:0 2px
+    }
+    .epdf-prev-bar-wrap{flex:1;min-width:0;padding:2px 0}
+    .epdf-prev-bar{
+      height:21px;border-radius:4px;
+      display:flex;align-items:center;padding:0 7px;
+      font-size:.72rem;font-weight:600;color:#fff;
+      white-space:nowrap;overflow:hidden;
+      transition:width .18s
+    }
+    .epdf-prev-bar.grand{width:100%}
+    .epdf-prev-bar.petit{width:50%}
+    .epdf-prev-size-lbl{
+      font-size:.63rem;color:#475569;flex-shrink:0;
+      width:18px;text-align:center;font-weight:700
+    }
+    .epdf-prev-separator{
+      font-size:.65rem;color:#475569;text-align:center;
+      padding:5px 0 4px;border-top:1px solid #2d3748;
+      border-bottom:1px solid #2d3748;margin:2px 0;
+      text-transform:uppercase;letter-spacing:.06em
+    }
+    .epdf-prev-table-row{
+      display:flex;align-items:center;gap:5px;padding:3px 4px;opacity:.65
+    }
+    .epdf-prev-empty{
+      font-size:.8rem;color:#334155;text-align:center;
+      padding:24px 0;font-style:italic
+    }
+    /* Footer */
+    .epdf-footer{
+      display:flex;justify-content:flex-end;gap:10px;
+      margin-top:16px;padding-top:14px;border-top:1px solid #2d3748
+    }
+    .epdf-cancel-btn{
+      padding:7px 18px;border-radius:9px;border:1.5px solid #334155;
+      background:transparent;color:#94a3b8;cursor:pointer;font-size:.84rem;transition:all .15s
+    }
+    .epdf-cancel-btn:hover{border-color:#64748b;color:#e2e8f0}
+    .epdf-confirm-btn{
+      padding:7px 20px;border-radius:9px;border:none;
+      background:#3b82f6;color:#fff;font-weight:700;font-size:.84rem;
+      cursor:pointer;transition:background .15s
+    }
+    .epdf-confirm-btn:hover{background:#2563eb}
+    /* PDF theme selector */
+    .epdf-theme-row{
+      display:flex;align-items:center;gap:10px;margin-bottom:14px;
+      padding:8px 12px;background:#141925;border-radius:8px;border:1px solid #2d3748
+    }
+    .epdf-theme-lbl{font-size:.79rem;color:#64748b;flex-shrink:0}
+    .epdf-theme-btns{display:flex;gap:4px}
+    .epdf-theme-btn{
+      padding:4px 12px;border-radius:8px;border:1.5px solid #334155;
+      background:transparent;color:#64748b;font-size:.79rem;cursor:pointer;transition:all .15s
+    }
+    .epdf-theme-btn.active{background:#3b82f6;border-color:#3b82f6;color:#fff;font-weight:600}
+    /* light overrides */
+    body.light .epdf-box{background:#fff;border-color:#e2e8f0}
+    body.light .epdf-subtitle{color:#9ca3af}
+    body.light .epdf-section-title{color:#9ca3af;border-bottom-color:#e2e8f0}
+    body.light .epdf-prev-hint{color:#d1d5db}
+    body.light .epdf-chart-item{background:#f8fafc;border-color:#e2e8f0}
+    body.light .epdf-chart-item label{color:#374151}
+    body.light .epdf-size-btn{border-color:#e2e8f0;color:#9ca3af}
+    body.light .epdf-table-item{background:#f8fafc;border-color:#e2e8f0;color:#374151}
+    body.light .epdf-footer{border-top-color:#e2e8f0}
+    body.light .epdf-cancel-btn{border-color:#e2e8f0;color:#6b7280}
+    body.light .epdf-cancel-btn:hover{border-color:#9ca3af;color:#374151}
+    body.light .epdf-theme-row{background:#f0f4f8;border-color:#e2e8f0}
+    body.light .epdf-theme-lbl{color:#9ca3af}
+    body.light .epdf-theme-btn{border-color:#e2e8f0;color:#9ca3af}
+    body.light .epdf-prev-item:hover{background:#f8fafc}
+    body.light .epdf-prev-item.epdf-drag-over{background:#eff6ff;border-color:#3b82f6}
+    body.light .epdf-prev-handle{color:#d1d5db}
+    body.light .epdf-prev-separator{color:#d1d5db;border-color:#e2e8f0}
+    body.light .epdf-prev-size-lbl{color:#d1d5db}
+
+    /* ---- X-axis ---- */
+    .xaxis-ctrl{
+      display:flex;gap:4px;justify-content:center;
+      margin-bottom:14px;align-items:center
+    }
+    .xaxis-ctrl label{color:#94a3b8;font-size:.82rem;margin-right:6px}
+    .radio-btn{
+      padding:4px 13px;border-radius:14px;border:1.5px solid #475569;
+      cursor:pointer;font-size:.8rem;background:transparent;color:#94a3b8;transition:all .15s
+    }
+    .radio-btn.active{background:#3b82f6;border-color:#3b82f6;color:#fff}
+
+    /* ---- Charts ---- */
+    .charts-grid{
+      display:grid;grid-template-columns:1fr 1fr;
+      gap:14px;max-width:1400px;margin:0 auto
+    }
+    @media(max-width:860px){.charts-grid{grid-template-columns:1fr}}
+    .chart-card{
+      background:#1e2535;border-radius:12px;padding:14px 14px 10px;
+      border:1px solid #2d3748
+    }
+    .chart-card.full-width{grid-column:1/-1}
+    .chart-title{
+      font-size:.77rem;font-weight:600;color:#94a3b8;
+      margin-bottom:6px;text-transform:uppercase;letter-spacing:.07em
+    }
+    .chart-wrap{position:relative;height:210px}
+    .chart-wrap.tall{height:250px}
+    .chart-wrap.placing canvas{cursor:crosshair!important}
+
+    /* ---- Palier legend ---- */
+    .palier-legend{
+      display:flex;flex-wrap:wrap;gap:5px;justify-content:center;
+      margin-top:14px;max-width:1400px;margin-left:auto;margin-right:auto
+    }
+    .palier-tag{
+      display:inline-flex;align-items:center;gap:4px;
+      padding:2px 9px;border-radius:10px;font-size:.72rem;
+      font-weight:600;border:1px solid rgba(255,255,255,.1)
+    }
+    .palier-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+    .hidden-section{display:none}
+
+    /* ---- Data table ---- */
+    #dataTableSection{max-width:1400px;margin:20px auto 0}
+    .table-topbar{
+      display:flex;justify-content:space-between;align-items:center;
+      margin-bottom:8px;flex-wrap:wrap;gap:8px
+    }
+    .table-toggle-btn{
+      display:flex;align-items:center;gap:7px;
+      background:#1e2535;border:1px solid #2d3748;border-radius:8px;
+      padding:7px 14px;cursor:pointer;font-size:.82rem;font-weight:600;color:#94a3b8;
+      transition:all .15s
+    }
+    .table-toggle-btn:hover{border-color:#3b82f6;color:#e2e8f0}
+    .table-toggle-btn .arrow{transition:transform .2s;display:inline-block}
+    .table-toggle-btn.open .arrow{transform:rotate(90deg)}
+    .table-actions{display:flex;gap:7px;align-items:center}
+    .restore-all-btn{
+      padding:5px 12px;border-radius:8px;border:1.5px solid #475569;
+      background:transparent;color:#94a3b8;cursor:pointer;font-size:.78rem;transition:all .15s
+    }
+    .restore-all-btn:hover{border-color:#10b981;color:#10b981}
+    .auto-del-btn{
+      padding:5px 12px;border-radius:8px;border:1.5px solid #475569;
+      background:transparent;color:#94a3b8;cursor:pointer;font-size:.78rem;transition:all .15s
+    }
+    .auto-del-btn:hover{border-color:#f97316;color:#f97316;background:#f9731612}
+    .table-info{font-size:.75rem;color:#64748b}
+
+    #dataTableWrap{
+      max-height:400px;overflow-y:auto;overflow-x:auto;
+      border:1px solid #2d3748;border-radius:10px;
+    }
+    #dataTableWrap table{
+      width:100%;border-collapse:collapse;font-size:.78rem;
+      background:#1a2233;
+    }
+    #dataTableWrap thead th{
+      position:sticky;top:0;z-index:2;
+      background:#1e2d3d;color:#94a3b8;font-weight:600;
+      padding:7px 10px;text-align:right;white-space:nowrap;
+      border-bottom:2px solid #2d3748
+    }
+    #dataTableWrap thead th:first-child,
+    #dataTableWrap thead th:nth-child(2),
+    #dataTableWrap thead th:nth-child(3),
+    #dataTableWrap thead th:nth-child(4){ text-align:left }
+    #dataTableWrap tbody tr{border-bottom:1px solid #1e2535;transition:background .1s}
+    #dataTableWrap tbody tr:hover{background:#1e2d3d}
+    #dataTableWrap tbody td{padding:5px 10px;text-align:right;color:#cbd5e1}
+    #dataTableWrap tbody td:first-child,
+    #dataTableWrap tbody td:nth-child(2),
+    #dataTableWrap tbody td:nth-child(3),
+    #dataTableWrap tbody td:nth-child(4){ text-align:left;color:#64748b }
+    .td-num{color:#334155!important;font-size:.7rem}
+    .td-aberrant{color:#f59e0b!important;font-weight:700}
+    .row-deleted td{
+      color:#475569!important;text-decoration:line-through;
+      background:rgba(239,68,68,.06)
+    }
+    .row-deleted .td-aberrant{color:#475569!important}
+    .delete-row-btn{
+      padding:2px 7px;border-radius:6px;border:1px solid #334155;
+      background:transparent;color:#475569;cursor:pointer;font-size:.75rem;transition:all .15s
+    }
+    .delete-row-btn:hover{border-color:#ef4444;color:#ef4444;background:#ef444418}
+    .restore-row-btn{
+      padding:2px 7px;border-radius:6px;border:1px solid #334155;
+      background:transparent;color:#475569;cursor:pointer;font-size:.75rem;transition:all .15s
+    }
+    .restore-row-btn:hover{border-color:#10b981;color:#10b981;background:#10b98118}
+
+    /* ---- Patient modal ---- */
+    #patientModal{
+      position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;
+      display:none;align-items:center;justify-content:center
+    }
+    #patientModal.open{display:flex}
+    .modal-box{
+      background:#1e2535;border:1px solid #334155;border-radius:16px;
+      padding:28px 32px;width:480px;max-width:95vw;
+      box-shadow:0 24px 64px rgba(0,0,0,.7)
+    }
+    .modal-title{font-size:1rem;font-weight:700;color:#e2e8f0;margin-bottom:4px}
+    .modal-sub{font-size:.8rem;color:#64748b;margin-bottom:20px}
+    .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px}
+    .modal-field{display:flex;flex-direction:column;gap:4px}
+    .modal-field.full{grid-column:1/-1}
+    .modal-field label{font-size:.72rem;color:#94a3b8;font-weight:600;
+      text-transform:uppercase;letter-spacing:.06em}
+    .modal-field input,.modal-field select{
+      background:#0f1117;border:1px solid #334155;border-radius:8px;
+      color:#e2e8f0;padding:7px 10px;font-size:.85rem;
+      outline:none;transition:border-color .15s
+    }
+    .modal-field input:focus,.modal-field select:focus{border-color:#3b82f6}
+    .modal-field select option{background:#1e2535}
+    .vems-hint{font-size:.7rem;color:#64748b;margin-top:3px;min-height:1em;line-height:1.4}
+    .vems-hint.has-val{color:#3b82f6}
+    body.light .vems-hint{color:#9ca3af}
+    body.light .vems-hint.has-val{color:#2563eb}
+    .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+    .modal-skip{
+      padding:8px 18px;border-radius:10px;border:1.5px solid #475569;
+      background:transparent;color:#94a3b8;cursor:pointer;font-size:.85rem;transition:all .15s
+    }
+    .modal-skip:hover{border-color:#e2e8f0;color:#e2e8f0}
+    .modal-confirm{
+      padding:8px 22px;border-radius:10px;border:none;
+      background:#3b82f6;color:#fff;cursor:pointer;font-size:.85rem;font-weight:600;
+      transition:background .15s
+    }
+    .modal-confirm:hover{background:#2563eb}
+
+    /* ---- VO2 théorique popup ---- */
+    #vo2theoModal{
+      position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:1000;
+      display:none;align-items:center;justify-content:center
+    }
+    #vo2theoModal.open{display:flex}
+    .vo2theo-box{
+      background:#1e2535;border:1px solid #334155;border-radius:16px;
+      padding:24px 28px;width:860px;max-width:96vw;max-height:92vh;
+      display:flex;flex-direction:column;gap:14px;
+      box-shadow:0 24px 64px rgba(0,0,0,.7);overflow-y:auto
+    }
+    .vo2theo-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+    .vo2theo-title{font-size:1rem;font-weight:700;color:#e2e8f0}
+    .vo2theo-sub{font-size:.78rem;color:#64748b;margin-top:3px}
+    .vo2theo-close{
+      width:30px;height:30px;border-radius:50%;border:1px solid #475569;
+      background:transparent;color:#94a3b8;cursor:pointer;font-size:.9rem;
+      flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s
+    }
+    .vo2theo-close:hover{background:#ef444422;border-color:#ef4444;color:#ef4444}
+    .vo2theo-stats{display:flex;flex-wrap:wrap;gap:10px}
+    .vo2theo-stat{
+      background:#0f1117;border:1px solid #2d3748;border-radius:10px;
+      padding:9px 14px;text-align:center;flex:1;min-width:110px
+    }
+    .vo2theo-stat-label{font-size:.68rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+    .vo2theo-stat-value{font-size:1.25rem;font-weight:700;margin-top:2px}
+    .vo2theo-stat-unit{font-size:.68rem;color:#64748b}
+    .vo2theo-chart-wrap{position:relative;height:340px}
+    .vo2theo-warn{font-size:.8rem;color:#f59e0b;padding:8px 12px;
+      background:#f59e0b18;border:1px solid #f59e0b44;border-radius:8px;display:none}
+    .vo2theo-warn.visible{display:block}
+    .vo2theo-ref{font-size:.7rem;color:#475569;text-align:right}
+
+    /* ---- Label de survol marqueur ---- */
+    #markerDragTip{
+      position:fixed;pointer-events:none;z-index:900;display:none;
+      padding:3px 9px;border-radius:7px;border:1.5px solid;
+      background:#1e2535;font-size:.75rem;font-weight:700;
+      transform:translate(14px,-50%);white-space:nowrap;
+      box-shadow:0 2px 8px rgba(0,0,0,.4)
+    }
+    body.light #markerDragTip{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+
+    /* ---- Export button ---- */
+    .export-bar{max-width:1400px;margin:14px auto 0;display:flex;justify-content:flex-end;gap:8px}
+    .export-btn{
+      padding:8px 20px;border-radius:10px;border:1.5px solid #475569;
+      background:transparent;color:#94a3b8;cursor:pointer;font-size:.82rem;font-weight:600;
+      transition:all .15s;display:inline-flex;align-items:center;gap:7px
+    }
+    .export-btn:hover{border-color:#3b82f6;color:#3b82f6}
+
+    /* ---- Bouton thème ---- */
+    #themeToggle{
+      position:fixed;top:14px;right:18px;z-index:950;
+      display:inline-flex;align-items:center;gap:6px;
+      padding:6px 14px;border-radius:20px;border:1.5px solid #334155;
+      background:#1e2535;color:#94a3b8;cursor:pointer;font-size:.8rem;
+      font-weight:600;transition:all .2s;box-shadow:0 2px 8px rgba(0,0,0,.4)
+    }
+    #themeToggle:hover{border-color:#3b82f6;color:#3b82f6}
+
+    /* ════════════════════════════════════════════════
+       THÈME CLAIR  —  overrides quand body.light
+       ════════════════════════════════════════════════ */
+    body.light{background:#f1f5f9;color:#1e293b}
+    body.light header h1{color:#0f172a}
+    body.light header p{color:#64748b}
+
+    /* Toggle */
+    body.light #themeToggle{background:#fff;border-color:#d1d5db;color:#64748b;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+    body.light #themeToggle:hover{border-color:#3b82f6;color:#3b82f6}
+
+    /* Drop zone */
+    body.light #dropZone{background:#fff;border-color:#cbd5e1}
+    body.light #dropZone.dragover{background:#eff6ff;border-color:#3b82f6}
+    body.light #dropZone .drop-title{color:#1e293b}
+    body.light #dropZone .drop-sub{color:#94a3b8}
+    body.light #dropZone .add-more{color:#64748b;border-color:#cbd5e1}
+    body.light #dropZone .add-more:hover{border-color:#3b82f6;color:#3b82f6}
+
+    /* Stats */
+    body.light .stat-card{background:#fff;border-color:#e2e8f0}
+    body.light .stat-label{color:#94a3b8}
+    body.light .stat-unit{color:#94a3b8}
+
+    /* Panneau marqueurs */
+    body.light .marker-panel{background:#fff;border-color:#e2e8f0}
+    body.light .marker-panel h3{color:#94a3b8}
+    body.light .marker-section-label{color:#9ca3af}
+    body.light .marker-sep{background:#e2e8f0}
+    body.light .mkey-hint{color:#9ca3af}
+    body.light #cancelMarker{border-color:#d1d5db;color:#6b7280}
+    body.light #cancelMarker:hover{background:#f1f5f9}
+
+    /* Tableau seuils */
+    body.light #thresholdSummary table{background:#fff;border-color:#e2e8f0}
+    body.light #thresholdSummary th{background:#f0f4f8;color:#6b7280;border-bottom-color:#e2e8f0}
+    body.light #thresholdSummary td{border-bottom-color:#f1f5f9}
+    body.light #thresholdSummary tr:hover{background:#f8fafc}
+    body.light .del-btn{border-color:#d1d5db;color:#9ca3af}
+    body.light .del-btn:hover{background:#fef2f2;border-color:#ef4444;color:#ef4444}
+    /* Cellules sum — overrides light */
+    body.light .sum-lbl{color:#6b7280}
+    body.light .sum-pct-lbl{border-top-color:#cbd5e1;color:#374151}
+    body.light .sum-pct-val{border-top-color:#cbd5e1}
+    body.light .sum-empty{color:#adb5bd}
+
+    /* Contrôles axe X / lissage */
+    body.light .xaxis-ctrl label{color:#6b7280}
+    body.light .radio-btn{border-color:#d1d5db;color:#6b7280}
+
+    /* Graphiques */
+    body.light .chart-card{background:#fff;border-color:#e2e8f0}
+    body.light .chart-title{color:#6b7280}
+
+    /* Légende paliers */
+    body.light .palier-tag{border-color:rgba(0,0,0,.1)}
+
+    /* Boutons export */
+    body.light .export-btn{border-color:#d1d5db;color:#6b7280}
+    body.light .export-btn:hover{border-color:#3b82f6;color:#3b82f6}
+
+    /* Section tableau cycles */
+    body.light .table-toggle-btn{background:#fff;border-color:#e2e8f0;color:#6b7280}
+    body.light .table-toggle-btn:hover{border-color:#3b82f6;color:#1e293b}
+    body.light .table-info{color:#9ca3af}
+    body.light .restore-all-btn{border-color:#d1d5db;color:#6b7280}
+    body.light .restore-all-btn:hover{border-color:#10b981;color:#10b981}
+    body.light .auto-del-btn{border-color:#d1d5db;color:#6b7280}
+    body.light .auto-del-btn:hover{border-color:#f97316;color:#f97316;background:#fff7ed}
+    body.light #dataTableWrap{border-color:#e2e8f0}
+    body.light #dataTableWrap table{background:#fff}
+    body.light #dataTableWrap thead th{background:#f0f4f8;color:#6b7280;border-bottom-color:#e2e8f0}
+    body.light #dataTableWrap tbody tr{border-bottom-color:#f1f5f9}
+    body.light #dataTableWrap tbody tr:nth-child(odd){background:#f8fafc}
+    body.light #dataTableWrap tbody tr:hover{background:#eff6ff}
+    body.light #dataTableWrap tbody td{color:#374151}
+    body.light #dataTableWrap tbody td:first-child,
+    body.light #dataTableWrap tbody td:nth-child(2),
+    body.light #dataTableWrap tbody td:nth-child(3),
+    body.light #dataTableWrap tbody td:nth-child(4){color:#9ca3af}
+    body.light .row-deleted td{color:#d1d5db!important;background:rgba(239,68,68,.03)}
+    body.light .row-deleted .td-aberrant{color:#d1d5db!important}
+    body.light .delete-row-btn{border-color:#d1d5db;color:#9ca3af}
+    body.light .delete-row-btn:hover{border-color:#ef4444;color:#ef4444;background:#fef2f2}
+    body.light .restore-row-btn{border-color:#d1d5db;color:#9ca3af}
+    body.light .restore-row-btn:hover{border-color:#10b981;color:#10b981;background:#f0fdf4}
+
+    /* ---- Modale cinétique lactique ---- */
+    #lactiqueModal{
+      position:fixed;inset:0;z-index:2000;
+      display:none;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.65);backdrop-filter:blur(3px)
+    }
+    #lactiqueModal.open{display:flex}
+    .lact-box{
+      background:#1e2535;border:1px solid #2d3748;border-radius:16px;
+      width:min(480px,96vw);max-height:85vh;overflow-y:auto;
+      padding:22px 26px;box-shadow:0 24px 60px rgba(0,0,0,.5)
+    }
+    .lact-title{font-size:1rem;font-weight:700;color:#e2e8f0;margin-bottom:4px}
+    .lact-sub{font-size:.79rem;color:#64748b;margin-bottom:16px}
+    .lact-table{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:.82rem}
+    .lact-table th{color:#64748b;font-weight:600;text-align:left;padding:4px 8px;border-bottom:1px solid #2d3748}
+    .lact-table td{padding:6px 8px;border-bottom:1px solid #1e2535;color:#cbd5e1;vertical-align:middle}
+    .lact-table tbody tr:last-child td{border-bottom:none}
+    .lact-add-row{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+    .lact-input{
+      padding:7px 10px;background:#141925;border:1px solid #2d3748;
+      border-radius:8px;color:#e2e8f0;font-size:.82rem;outline:none
+    }
+    .lact-input:focus{border-color:#3b82f6}
+    .lact-input-time{width:72px}
+    .lact-input-val{width:96px}
+    .lact-add-btn{
+      padding:7px 14px;border-radius:8px;border:1.5px solid #3b82f6;
+      background:transparent;color:#3b82f6;cursor:pointer;font-size:.82rem;font-weight:600;transition:all .15s
+    }
+    .lact-add-btn:hover{background:#3b82f6;color:#fff}
+    .lact-del-btn{
+      padding:2px 7px;border-radius:6px;border:1px solid #334155;
+      background:transparent;color:#475569;cursor:pointer;font-size:.75rem;transition:all .15s
+    }
+    .lact-del-btn:hover{border-color:#ef4444;color:#ef4444}
+    .lact-actions{display:flex;justify-content:flex-end;gap:10px}
+    body.light .lact-box{background:#fff;border-color:#e2e8f0;box-shadow:0 24px 64px rgba(0,0,0,.15)}
+    body.light .lact-title{color:#0f172a}
+    body.light .lact-sub{color:#9ca3af}
+    body.light .lact-table th{color:#6b7280;border-bottom-color:#e2e8f0}
+    body.light .lact-table td{color:#374151;border-bottom-color:#f1f5f9}
+    body.light .lact-input{background:#f8fafc;border-color:#d1d5db;color:#1e293b}
+
+    /* Modal patient */
+    body.light .modal-box{background:#fff;border-color:#e2e8f0;box-shadow:0 24px 64px rgba(0,0,0,.15)}
+    body.light .modal-title{color:#0f172a}
+    body.light .modal-sub{color:#9ca3af}
+    body.light .modal-field label{color:#6b7280}
+    body.light .modal-field input,
+    body.light .modal-field select{background:#f8fafc;border-color:#d1d5db;color:#1e293b}
+    body.light .modal-field select option{background:#fff}
+    body.light .modal-skip{border-color:#d1d5db;color:#6b7280}
+    body.light .modal-skip:hover{border-color:#1e293b;color:#1e293b}
+
+    /* Popup VO2 théorique */
+    body.light .vo2theo-box{background:#fff;border-color:#e2e8f0;box-shadow:0 24px 64px rgba(0,0,0,.15)}
+    body.light .vo2theo-title{color:#0f172a}
+    body.light .vo2theo-sub{color:#9ca3af}
+    body.light .vo2theo-stat{background:#f8fafc;border-color:#e2e8f0}
+    body.light .vo2theo-stat-label,
+    body.light .vo2theo-stat-unit{color:#9ca3af}
+    body.light .vo2theo-warn{background:#fefce8;border-color:#fde047;color:#854d0e}
+    body.light .vo2theo-ref{color:#9ca3af}
+    body.light .vo2theo-close{border-color:#d1d5db;color:#6b7280}
+    body.light .vo2theo-close:hover{background:#fef2f2;border-color:#ef4444;color:#ef4444}
+  </style>
+</head>
+<body class="light">
+
+<button id="themeToggle" onclick="toggleTheme()" title="Basculer thème clair/sombre">&#9728; Clair</button>
+
+<header>
+  <h1>VO₂ — Analyse Épreuve d’Effort</h1>
+  <p>Chargez un ou plusieurs fichiers CSV pour visualiser et comparer les résultats</p>
+</header>
+
+<!-- Drop zone -->
+<div id="dropZone" onclick="document.getElementById('fileInput').click()">
+  <div id="dropContent">
+    <div class="drop-icon">&#128196;</div>
+    <div class="drop-title">Glissez vos fichiers CSV ici</div>
+    <div class="drop-sub">ou cliquez pour sélectionner — plusieurs fichiers acceptés</div>
+  </div>
+  <input type="file" id="fileInput" accept=".txt,.csv" multiple>
+</div>
+
+<!-- File list -->
+<div id="fileList"></div>
+
+<!-- Main content (hidden until file loaded) -->
+<div id="mainContent" class="hidden-section">
+
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow"></div>
+
+  <!-- Marker panel -->
+  <div class="marker-panel">
+
+    <!-- Bloc Data -->
+    <div class="marker-block" id="ptProfilRow" style="display:none">
+      <div class="marker-block-title">Data</div>
+      <button class="btn-patient" onclick="reopenPatientModal()">
+        <span>&#128100;</span><span>Infos patient</span>
+      </button>
+      <div class="mkgroup">
+        <span class="mkgroup-label">Profil</span>
+        <div class="mkgroup-row">
+          <button class="pt-profil-btn" id="ppBtn-sedentaire"  onclick="setPatientProfil('sedentaire')">S&eacute;dentaire</button>
+          <button class="pt-profil-btn" id="ppBtn-sportif"     onclick="setPatientProfil('sportif')">Sportif</button>
+          <button class="pt-profil-btn" id="ppBtn-haut_niveau" onclick="setPatientProfil('haut_niveau')">Haut niveau</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bloc Marqueurs -->
+    <div class="marker-block">
+      <div class="marker-block-title">Marqueurs — <span id="markerFileLabel" style="color:#94a3b8;text-transform:none;letter-spacing:0;font-weight:400"></span></div>
+
+      <!-- Zones -->
+      <div class="mkgroup">
+        <span class="mkgroup-label">Zones</span>
+        <div class="mkgroup-row">
+          <button class="mkey-btn" id="btn-warmup" onclick="activateMarker('warmup')"
+                  style="border-color:#06b6d4;color:#06b6d4">
+            <span class="dot" style="background:#06b6d4"></span>Fin Échauff.
+          </button>
+          <button class="mkey-btn" id="btn-effort_end" onclick="activateMarker('effort_end')"
+                  style="border-color:#10b981;color:#10b981">
+            <span class="dot" style="background:#10b981"></span>Fin Épreuve
+          </button>
+        </div>
+      </div>
+
+      <!-- Seuils ventilatoires -->
+      <div class="mkgroup">
+        <span class="mkgroup-label">Seuils ventilatoires</span>
+        <div class="mkgroup-row">
+          <button class="mkey-btn" id="btn-sv1" onclick="activateMarker('sv1')"
+                  style="border-color:#f97316;color:#f97316">
+            <span class="dot" style="background:#f97316"></span>SV1
+          </button>
+          <button class="mkey-btn" id="btn-sv2" onclick="activateMarker('sv2')"
+                  style="border-color:#ef4444;color:#ef4444">
+            <span class="dot" style="background:#ef4444"></span>SV2
+          </button>
+          <button class="mkey-btn" id="btn-vo2max" onclick="activateMarker('vo2max')"
+                  style="border-color:#a855f7;color:#a855f7">
+            <span class="dot" style="background:#a855f7"></span>VO₂max
+          </button>
+          <button id="autoSvBtn" onclick="autoDetectThresholds()" style="margin-left:auto"
+                  title="Détection automatique SV1 &amp; SV2 — V-slope (Beaver), nadir VE/VO₂, nadir VE/VCO₂, compensation respiratoire">
+            ⚡ Auto SV
+          </button>
+        </div>
+      </div>
+
+      <!-- Lactate -->
+      <div class="mkgroup">
+        <span class="mkgroup-label">Lactate</span>
+        <div class="mkgroup-row">
+          <button class="mkey-btn" onclick="openLactiqueModal()"
+                  style="border-color:#f472b6;color:#f472b6">
+            <span class="dot" style="background:#f472b6"></span>Cin&eacute;tique
+          </button>
+        </div>
+        <!-- Seuils lactiques — visibles uniquement si cinétique présente -->
+        <div class="mkgroup-row" id="slBtnsRow" style="display:none;margin-top:6px">
+          <button class="mkey-btn" id="btn-sl1" onclick="activateMarker('sl1')"
+                  style="border-color:#c084fc;color:#c084fc">
+            <span class="dot" style="background:#c084fc"></span>SL1
+          </button>
+          <button class="mkey-btn" id="btn-sl2" onclick="activateMarker('sl2')"
+                  style="border-color:#7c3aed;color:#7c3aed">
+            <span class="dot" style="background:#7c3aed"></span>SL2
+          </button>
+          <button id="autoSlBtn" onclick="autoDetectLactateThresholds()" style="margin-left:auto"
+                  title="Détection automatique SL1 &amp; SL2 — méthode Dmax (Cheng 1992)">
+            ⚡ Auto SL
+          </button>
+        </div>
+      </div>
+
+      <!-- Pied : désactivation + hint -->
+      <div class="mkfooter">
+        <button id="cancelMarker" onclick="deactivateMarker()">✕ Désactiver</button>
+        <span class="mkey-hint" id="markerHint">Sélectionnez un marqueur puis cliquez sur un graphique.</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Threshold summary -->
+  <div id="thresholdSummary"><table id="summaryTable"></table></div>
+
+  <!-- Critères de maximalité -->
+  <div id="maxCriteriaSection">
+    <button class="max-crit-header" id="maxCriteriaHeader" onclick="toggleMaxCriteria()">
+      <span class="arrow">▶</span>
+      Critères de maximalité
+      <span id="maxCriteriaScore"></span>
+    </button>
+    <div id="maxCriteriaWrap">
+      <table id="maxCriteriaTable"></table>
+    </div>
+  </div>
+
+  <!-- X-axis -->
+  <div class="xaxis-ctrl">
+    <label>Axe X :</label>
+    <button class="radio-btn active" id="xbtn-time"   onclick="setXAxis('time')">Temps (mm:ss)</button>
+    <button class="radio-btn"        id="xbtn-charge" onclick="setXAxis('charge')">Charge (W)</button>
+    <span style="width:1px;height:20px;background:#2d3748;margin:0 6px;display:inline-block"></span>
+    <label>Lissage :</label>
+    <button class="radio-btn active" id="smooth-1" onclick="setSmoothing(1)">Aucun</button>
+    <button class="radio-btn"        id="smooth-2" onclick="setSmoothing(2)">2</button>
+    <button class="radio-btn"        id="smooth-3" onclick="setSmoothing(3)">3</button>
+    <button class="radio-btn"        id="smooth-4" onclick="setSmoothing(4)">4</button>
+    <button class="radio-btn"        id="smooth-5" onclick="setSmoothing(5)">5</button>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card full-width">
+      <div class="chart-title">FC — Fréquence Cardiaque (bpm)</div>
+      <div class="chart-wrap tall" id="wrap-fc"><canvas id="chartFC"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">VO₂ — Consommation d’O₂ (L/min)</div>
+      <div class="chart-wrap" id="wrap-vo2"><canvas id="chartVO2"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">VCO₂ — Production de CO₂ (L/min)</div>
+      <div class="chart-wrap" id="wrap-vco2"><canvas id="chartVCO2"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">VE — Ventilation Minute (L/min)</div>
+      <div class="chart-wrap" id="wrap-ve"><canvas id="chartVE"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">FR — Fréquence Respiratoire (c/min)</div>
+      <div class="chart-wrap" id="wrap-fr"><canvas id="chartFR"></canvas></div>
+    </div>
+    <div class="chart-card full-width">
+      <div class="chart-title">
+        VE / VO₂ / VCO₂ —
+        <span style="color:#10b981;font-weight:700">── VE</span>
+        &nbsp;·&nbsp;
+        <span style="color:#3b82f6;font-weight:700">── VO₂</span>
+        &nbsp;·&nbsp;
+        <span style="color:#06b6d4;font-weight:700">── VCO₂</span>
+        <span style="color:#64748b;font-size:.72rem;font-weight:400;margin-left:8px">(axe gauche : VO₂ / VCO₂ · axe droit : VE)</span>
+      </div>
+      <div class="chart-wrap tall" id="wrap-combo"><canvas id="chartCOMBO"></canvas></div>
+    </div>
+    <div class="chart-card full-width">
+      <div class="chart-title">
+        Équivalents ventilatoires —
+        <span style="color:#f59e0b;font-weight:700">── EqO₂ = VE/VO₂</span>
+        &nbsp;·&nbsp;
+        <span style="color:#38bdf8;font-weight:700">- - EqCO₂ = VE/VCO₂</span>
+      </div>
+      <div class="chart-wrap tall" id="wrap-eq"><canvas id="chartEQ"></canvas></div>
+    </div>
+    <div class="chart-card full-width">
+      <div class="chart-title">
+        Pressions télé-expiratoires —
+        <span style="color:#f97316;font-weight:700">── PETO₂</span>
+        &nbsp;·&nbsp;
+        <span style="color:#a855f7;font-weight:700">── PETCO₂</span>
+        <span style="color:#64748b;font-size:.72rem;font-weight:400;margin-left:8px">(mmHg)</span>
+      </div>
+      <div class="chart-wrap" id="wrap-pet"><canvas id="chartPET"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Graphiques complémentaires -->
+  <div id="extraChartsSection">
+    <button class="max-crit-header extra-crit-header" id="extraChartsHeader" onclick="toggleExtraCharts()">
+      <span class="arrow">▶</span>
+      Graphiques complémentaires &mdash;
+      <span style="color:#e879f9;font-weight:700">Pouls O&#8322;</span>
+      &nbsp;&middot;&nbsp;
+      <span style="color:#34d399;font-weight:700">R&eacute;serve ventilatoire</span>
+      &nbsp;&middot;&nbsp;
+      <span style="color:#fbbf24;font-weight:700">Espace mort</span>
+    </button>
+    <div id="extraChartsWrap" style="display:none">
+      <div class="charts-grid" style="margin-top:8px">
+
+        <!-- Pouls d'O₂ -->
+        <div class="chart-card full-width">
+          <div class="chart-title">
+            Pouls d&rsquo;O&#8322; &mdash;
+            <span style="color:#e879f9;font-weight:700">&#9472;&#9472; O&#8322;/Battement</span>
+            <span style="color:#64748b;font-size:.72rem;font-weight:400;margin-left:8px">(mL/bat)</span>
+          </div>
+          <div class="chart-wrap" id="wrap-po2"><canvas id="chartPO2"></canvas></div>
+        </div>
+
+        <!-- Réserve ventilatoire -->
+        <div class="chart-card full-width">
+          <div class="chart-title">
+            R&eacute;serve ventilatoire &mdash;
+            <span style="color:#34d399;font-weight:700">&#9472;&#9472; MVV &minus; VE</span>
+            <span style="color:#64748b;font-size:.72rem;font-weight:400;margin-left:8px">(L/min)</span>
+          </div>
+          <div class="chart-wrap" id="wrap-br"><canvas id="chartBR"></canvas></div>
+        </div>
+
+        <!-- Espace mort -->
+        <div class="chart-card full-width">
+          <div class="chart-title">
+            Espace mort &mdash;
+            <span style="color:#fbbf24;font-weight:700">&#9472;&#9472; LD/VT</span>
+            <span style="color:#64748b;font-size:.72rem;font-weight:400;margin-left:8px">(ratio)</span>
+          </div>
+          <div class="chart-wrap" id="wrap-vd"><canvas id="chartVD"></canvas></div>
+        </div>
+
+        <!-- Cinétique lactique -->
+        <div class="chart-card full-width" id="wrapCardLAC" style="display:none">
+          <div class="chart-title">
+            Cin&eacute;tique lactique &mdash;
+            <span style="color:#f472b6;font-weight:700">&#9472;&#9472; Lactate</span>
+            <span style="color:#64748b;font-size:.72rem;font-weight:400;margin-left:8px">(mmol/L)</span>
+          </div>
+          <div class="chart-wrap" id="wrap-lac"><canvas id="chartLAC"></canvas></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Palier legend -->
+  <div class="palier-legend" id="palierLegend" style="margin-top:16px"></div>
+
+  <!-- Boutons action -->
+  <div class="export-bar">
+    <button class="export-btn" onclick="openVO2Theo()">&#128200; VO&#8322; Th&eacute;orique</button>
+    <button class="export-btn" onclick="openExportModal()">&#11015; Exporter PDF</button>
+  </div>
+
+</div><!-- /mainContent -->
+
+<!-- ============================================================ -->
+<!--  CINÉTIQUE LACTIQUE MODAL                                    -->
+<!-- ============================================================ -->
+<div id="lactiqueModal" onclick="if(event.target===this)closeLactiqueModal()">
+  <div class="lact-box">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px">
+      <div class="lact-title">&#128200; Cin&eacute;tique lactique</div>
+      <button class="lact-del-btn" onclick="fillDebugLactate()" style="font-size:.72rem;border-color:#f59e0b;color:#f59e0b;white-space:nowrap" title="Génère des valeurs exponentielles toutes les 2 min entre début et fin d'épreuve">&#9881; Debug auto-fill</button>
+    </div>
+    <div class="lact-sub">Associez chaque mesure de lactate &agrave; un temps de l&rsquo;&eacute;preuve (format mm:ss)</div>
+    <table class="lact-table">
+      <thead><tr><th>Temps</th><th>Lactate (mmol/L)</th><th></th></tr></thead>
+      <tbody id="lactiqueTableBody"></tbody>
+    </table>
+    <div class="lact-add-row">
+      <input id="lacTimeInput" class="lact-input lact-input-time" type="text" placeholder="mm:ss" maxlength="8"
+             onkeydown="if(event.key==='Enter')document.getElementById('lacValInput').focus()">
+      <input id="lacValInput"  class="lact-input lact-input-val"  type="number" step="0.1" min="0" placeholder="mmol/L"
+             onkeydown="if(event.key==='Enter')addLactiqueEntry()">
+      <button class="lact-add-btn" onclick="addLactiqueEntry()">+ Ajouter</button>
+    </div>
+    <div class="lact-actions">
+      <button class="modal-skip" onclick="closeLactiqueModal()">Annuler</button>
+      <button class="modal-confirm" onclick="saveLactiquePoints()">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!--  EXPORT PDF MODAL                                            -->
+<!-- ============================================================ -->
+<div id="exportModal" onclick="if(event.target===this)closeExportModal()">
+  <div class="epdf-box">
+    <h2>&#11015; Export PDF</h2>
+    <p class="epdf-subtitle">Cochez les éléments à inclure, ajustez la taille, puis <strong>glissez les blocs</strong> dans l'aperçu pour changer leur ordre.</p>
+
+    <div class="epdf-theme-row">
+      <span class="epdf-theme-lbl">Thème du PDF&nbsp;:</span>
+      <div class="epdf-theme-btns">
+        <button class="epdf-theme-btn active" id="epdfThemeDark"  onclick="epdfSetPdfTheme('dark')">&#9680; Sombre</button>
+        <button class="epdf-theme-btn"        id="epdfThemeLight" onclick="epdfSetPdfTheme('light')">&#9728; Clair</button>
+      </div>
+    </div>
+
+    <div class="epdf-columns">
+
+      <!-- ── Sélection ─────────────────────────────────── -->
+      <div class="epdf-col-select">
+        <div class="epdf-section-title">Graphiques</div>
+        <div class="epdf-chart-list">
+
+          <div class="epdf-chart-item">
+            <label><input type="checkbox" id="epdfChk-fc" checked onchange="epdfToggleChart('fc')"> FC — Fréq. Cardiaque</label>
+            <div class="epdf-size-btns">
+              <button class="epdf-size-btn active" id="epdfSz-fc-grand" onclick="epdfSetSize('fc','grand')">Grand</button>
+              <button class="epdf-size-btn"        id="epdfSz-fc-petit" onclick="epdfSetSize('fc','petit')">Petit</button>
+            </div>
+          </div>
+
+          <div class="epdf-chart-item">
+            <label><input type="checkbox" id="epdfChk-vo2" checked onchange="epdfToggleChart('vo2')"> VO&#8322;</label>
+            <div class="epdf-size-btns">
+              <button class="epdf-size-btn"        id="epdfSz-vo2-grand" onclick="epdfSetSize('vo2','grand')">Grand</button>
+              <button class="epdf-size-btn active" id="epdfSz-vo2-petit" onclick="epdfSetSize('vo2','petit')">Petit</button>
+            </div>
+          </div>
+
+          <div class="epdf-chart-item">
+            <label><input type="checkbox" id="epdfChk-vco2" checked onchange="epdfToggleChart('vco2')"> VCO&#8322;</label>
+            <div class="epdf-size-btns">
+              <button class="epdf-size-btn"        id="epdfSz-vco2-grand" onclick="epdfSetSize('vco2','grand')">Grand</button>
+              <button class="epdf-size-btn active" id="epdfSz-vco2-petit" onclick="epdfSetSize('vco2','petit')">Petit</button>
+            </div>
+          </div>
+
+          <div class="epdf-chart-item">
+            <label><input type="checkbox" id="epdfChk-ve" checked onchange="epdfToggleChart('ve')"> VE — Ventilation Minute</label>
+            <div class="epdf-size-btns">
+              <button class="epdf-size-btn"        id="epdfSz-ve-grand" onclick="epdfSetSize('ve','grand')">Grand</button>
+              <button class="epdf-size-btn active" id="epdfSz-ve-petit" onclick="epdfSetSize('ve','petit')">Petit</button>
+            </div>
+          </div>
+
+          <div class="epdf-chart-item">
+            <label><input type="checkbox" id="epdfChk-fr" checked onchange="epdfToggleChart('fr')"> FR — Fréq. Respiratoire</label>
+            <div class="epdf-size-btns">
+              <button class="epdf-size-btn"        id="epdfSz-fr-grand" onclick="epdfSetSize('fr','grand')">Grand</button>
+              <button class="epdf-size-btn active" id="epdfSz-fr-petit" onclick="epdfSetSize('fr','petit')">Petit</button>
+            </div>
+          </div>
+
+          <div class="epdf-chart-item">
+            <label><input type="checkbox" id="epdfChk-combo" checked onchange="epdfToggleChart('combo')"> Combo VO&#8322;/VCO&#8322;/VE</label>
+            <div class="epdf-size-btns">
+              <button class="epdf-size-btn active" id="epdfSz-combo-grand" onclick="epdfSetSize('combo','grand')">Grand</button>
+              <button class="epdf-size-btn"        id="epdfSz-combo-petit" onclick="epdfSetSize('combo','petit')">Petit</button>
+            </div>
+          </div>
+
+          <div class="epdf-chart-item">
+            <label><input type="checkbox" id="epdfChk-eq" checked onchange="epdfToggleChart('eq')"> Équivalents Ventilatoires</label>
+            <div class="epdf-size-btns">
+              <button class="epdf-size-btn active" id="epdfSz-eq-grand" onclick="epdfSetSize('eq','grand')">Grand</button>
+              <button class="epdf-size-btn"        id="epdfSz-eq-petit" onclick="epdfSetSize('eq','petit')">Petit</button>
+            </div>
+          </div>
+
+          <div class="epdf-chart-item">
+            <label><input type="checkbox" id="epdfChk-pet" checked onchange="epdfToggleChart('pet')"> PETO&#8322; / PETCO&#8322;</label>
+            <div class="epdf-size-btns">
+              <button class="epdf-size-btn active" id="epdfSz-pet-grand" onclick="epdfSetSize('pet','grand')">Grand</button>
+              <button class="epdf-size-btn"        id="epdfSz-pet-petit" onclick="epdfSetSize('pet','petit')">Petit</button>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="epdf-section-title">Tableaux</div>
+        <div class="epdf-tables-col">
+          <label class="epdf-table-item"><input type="checkbox" id="epdfTblSeuils" checked onchange="renderEpdfPreview()">&nbsp;Seuils ventilatoires</label>
+          <label class="epdf-table-item"><input type="checkbox" id="epdfTblMax"    checked onchange="renderEpdfPreview()">&nbsp;Critères de maximalité</label>
+        </div>
+      </div>
+
+      <!-- ── Aperçu / Ordre ──────────────────────────── -->
+      <div class="epdf-col-preview">
+        <div class="epdf-section-title">
+          Aperçu &amp; ordre
+          <span class="epdf-prev-hint">&#8645; glisser pour réorganiser</span>
+        </div>
+        <div id="epdfPreview" class="epdf-prev-list"></div>
+      </div>
+
+    </div>
+
+    <div class="epdf-footer">
+      <button class="epdf-cancel-btn"  onclick="closeExportModal()">Annuler</button>
+      <button class="epdf-confirm-btn" onclick="generatePDFFromForm()">&#11015; Générer PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- Data table -->
+<div id="dataTableSection" class="hidden-section">
+  <div class="table-topbar">
+    <button class="table-toggle-btn" id="tableToggleBtn" onclick="toggleDataTable()">
+      <span class="arrow">▶</span>
+      Cycles respiratoires —
+      <span id="dataTableFileLabel2" style="color:#e2e8f0"></span>
+      <span class="table-info" id="tableRowCount"></span>
+    </button>
+    <div class="table-actions">
+      <span class="table-info">Valeurs en <span style="color:#f59e0b;font-weight:700">orange</span> = potentiellement aberrantes</span>
+      <button class="auto-del-btn" onclick="autoDeleteAberrant(5)"  title="Supprime les 5 % de cycles dont la déviation locale est la plus forte">&#128465; Suppr. 5&nbsp;% aberrants</button>
+      <button class="auto-del-btn" onclick="autoDeleteAberrant(10)" title="Supprime les 10 % de cycles dont la déviation locale est la plus forte">&#128465; Suppr. 10&nbsp;% aberrants</button>
+      <button class="restore-all-btn" onclick="restoreAll()">&#8634; Restaurer tout</button>
+    </div>
+  </div>
+  <div id="dataTableWrap" style="display:none">
+    <table id="dataTable"></table>
+  </div>
+</div>
+
+<!-- VO2 Théorique Popup -->
+<div id="vo2theoModal">
+  <div class="vo2theo-box">
+    <div class="vo2theo-head">
+      <div>
+        <div class="vo2theo-title">VO&#8322; mesuré vs théorique</div>
+        <div class="vo2theo-sub" id="vo2theoSub"></div>
+        <div class="vo2theo-sub" id="vo2theoZoneInfo" style="color:#06b6d4;margin-top:2px"></div>
+      </div>
+      <button class="vo2theo-close" onclick="closeVO2Theo()">&#10005;</button>
+    </div>
+    <div class="vo2theo-stats" id="vo2theoStats"></div>
+    <div class="vo2theo-warn" id="vo2theoWarn"></div>
+    <div class="vo2theo-chart-wrap"><canvas id="chartVO2Theo"></canvas></div>
+    <div class="vo2theo-ref">
+      Référence : Wasserman &amp; Hansen, <em>Principles of Exercise Testing</em>, 2012 —
+      Zone normale : ±20 % de la valeur prédite
+    </div>
+  </div>
+</div>
+
+<!-- Patient Info Modal -->
+<div id="patientModal">
+  <div class="modal-box">
+    <div class="modal-title">Informations patient</div>
+    <div class="modal-sub" id="modalFileSub">Fichier chargé</div>
+    <div class="modal-grid">
+      <div class="modal-field">
+        <label>Nom</label>
+        <input id="pt-nom" type="text" placeholder="Nom de famille" autocomplete="off">
+      </div>
+      <div class="modal-field">
+        <label>Prénom</label>
+        <input id="pt-prenom" type="text" placeholder="Prénom" autocomplete="off">
+      </div>
+      <div class="modal-field">
+        <label>Âge (ans)</label>
+        <input id="pt-age" type="number" min="1" max="120" placeholder="—" oninput="updateVEMSHint()">
+      </div>
+      <div class="modal-field">
+        <label>Sexe</label>
+        <select id="pt-sexe" onchange="updateVEMSHint()">
+          <option value="">—</option>
+          <option value="M">Masculin</option>
+          <option value="F">Féminin</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Taille (cm)</label>
+        <input id="pt-taille" type="number" min="50" max="250" placeholder="—" oninput="updateVEMSHint()">
+      </div>
+      <div class="modal-field">
+        <label>Poids (kg)</label>
+        <input id="pt-poids" type="number" min="10" max="300" placeholder="—">
+      </div>
+      <div class="modal-field">
+        <label>Date du test</label>
+        <input id="pt-date" type="date">
+      </div>
+      <div class="modal-field">
+        <label>Profil</label>
+        <select id="pt-profil">
+          <option value="">—</option>
+          <option value="sedentaire">S&eacute;dentaire</option>
+          <option value="sportif">Sportif</option>
+          <option value="haut_niveau">Haut niveau</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Lactat&eacute;mie fin d&rsquo;effort (mmol/L) <span style="font-weight:400;opacity:.6">— optionnel</span></label>
+        <input id="pt-lactate" type="number" min="0" max="30" step="0.1" placeholder="—">
+      </div>
+      <div class="modal-field">
+        <label>VEMS mesur&eacute; (L) <span style="font-weight:400;opacity:.6">— optionnel</span></label>
+        <input id="pt-vems" type="number" min="0" max="10" step="0.01" placeholder="—" oninput="updateVEMSHint()">
+        <div class="vems-hint" id="vemsHint"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-skip" onclick="skipPatient()">Ignorer</button>
+      <button class="modal-confirm" onclick="confirmPatient()">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<div id="markerDragTip"></div>
+
+<script>
+// ================================================================
+//  STATE
+// ================================================================
+const loadedFiles = [];
+let activeFileId  = null;
+let xAxisMode      = 'time';
+let activeMarker   = null;
+let smoothingWindow = 1;
+const charts      = {};
+let draggingMarker    = null;  // { fileId, key, chart } pendant le glisser
+let wasDraggingMarker = false; // bloque le click Chart.js après un glisser
+
+const FILE_PALETTE = [
+  '#ef4444','#3b82f6','#10b981','#f97316',
+  '#a855f7','#06b6d4','#eab308','#ec4899','#84cc16','#14b8a6'
+];
+
+const PALIER_COLORS = {
+  'Rep':'#64748b','2':'#3b82f6','3':'#06b6d4','4':'#10b981','5':'#84cc16',
+  '6':'#eab308','7':'#f97316','8':'#ef4444','9':'#ec4899','10':'#a855f7',
+  '11':'#8b5cf6','12':'#6366f1','13':'#14b8a6','14':'#f43f5e','R 1':'#94a3b8'
+};
+
+const MARKER_COLORS = {
+  sv1:'#f97316', sv2:'#ef4444', vo2max:'#a855f7',
+  warmup:'#06b6d4', effort_end:'#10b981',
+  sl1:'#c084fc', sl2:'#7c3aed',
+};
+const MARKER_LABELS = {
+  sv1:'SV1', sv2:'SV2', vo2max:'VO₂max',
+  warmup:'Fin Échauff.', effort_end:'Fin Épreuve',
+  sl1:'SL1', sl2:'SL2',
+};
+const SV_KEYS   = ['sv1','sv2','vo2max'];          // seuils ventilatoires
+const SL_KEYS   = ['sl1','sl2'];                   // seuils lactiques
+const ZONE_KEYS = ['warmup','effort_end'];          // délimiteurs de zones
+
+const CHART_CFGS = [
+  { key:'fc',   canvasId:'chartFC',   field:'fc',   title:'FC',   unit:'bpm',   fullWidth:true,  tall:true  },
+  { key:'vo2',  canvasId:'chartVO2',  field:'vo2',  title:'VO₂',  unit:'L/min', fullWidth:false, tall:false },
+  { key:'vco2', canvasId:'chartVCO2', field:'vco2', title:'VCO₂', unit:'L/min', fullWidth:false, tall:false },
+  { key:'ve',   canvasId:'chartVE',   field:'ve',   title:'VE',   unit:'L/min', fullWidth:false, tall:false },
+  { key:'fr',    canvasId:'chartFR',    field:'fr',    title:'FR',    unit:'c/min', fullWidth:false, tall:false },
+  { key:'combo', canvasId:'chartCOMBO', field:'combo', title:'Combo', unit:'L/min', fullWidth:true,  tall:true  },
+  { key:'eq',    canvasId:'chartEQ',    field:'eq',    title:'Eq',    unit:'',      fullWidth:true,  tall:true  },
+  { key:'pet',   canvasId:'chartPET',   field:'pet',   title:'PET',   unit:'mmHg',  fullWidth:true,  tall:false },
+];
+
+const EXTRA_CHART_CFGS = [
+  { key:'po2', canvasId:'chartPO2', field:'po2', title:'Pouls O₂',    unit:'mL/bat', fullWidth:true, tall:false },
+  { key:'br',  canvasId:'chartBR',  field:'br',  title:'Rés. Vent.',   unit:'L/min',  fullWidth:true, tall:false },
+  { key:'vd',  canvasId:'chartVD',  field:'vd',  title:'Espace mort',  unit:'ratio',  fullWidth:true, tall:false },
+  { key:'lac', canvasId:'chartLAC', field:'lac', title:'Lactate',       unit:'mmol/L', fullWidth:true, tall:false },
+];
+
+// ================================================================
+//  CSV PARSER
+// ================================================================
+function parseVO2CSV(text) {
+  const lines = text.split('\n');
+  const data  = [];
+
+  // ── Détection dynamique des colonnes depuis l'en-tête ──
+  let peto2Idx = -1, petco2Idx = -1;
+  let vriIdx = -1, vreIdx = -1, ldvtIdx = -1;
+  if (lines.length > 0) {
+    let hdr = lines[0].trim();
+    const hti = hdr.indexOf('\t');
+    if (hti >= 0) hdr = hdr.slice(hti + 1);
+    const hcols = hdr.split('!').map(s => s.trim().toUpperCase());
+    peto2Idx  = hcols.findIndex(h => h === 'PETO2'  || h === 'PET02');   // tolérance typo
+    petco2Idx = hcols.findIndex(h => h === 'PETCO2' || h === 'PETC02');
+    vriIdx    = hcols.findIndex(h => h === 'VRI');
+    vreIdx    = hcols.findIndex(h => h === 'VRE');
+    ldvtIdx   = hcols.findIndex(h => h === 'LD/VT');
+  }
+
+  for (let i = 1; i < lines.length; i++) {
+    let line = lines[i].trim();
+    if (!line) continue;
+    const ti = line.indexOf('\t');
+    if (ti >= 0) line = line.slice(ti + 1);
+    const c = line.split('!');
+    if (c.length < 22) continue;
+    const pf = s => { const v = parseFloat(s.trim().replace(',','.')); return isNaN(v) ? null : v; };
+    const pt = s => {
+      const p = s.trim().split(':');
+      if (p.length !== 2) return null;
+      const m = parseInt(p[0]), sec = parseInt(p[1]);
+      return (isNaN(m)||isNaN(sec)) ? null : m*60+sec;
+    };
+    const _fc  = pf(c[10]);
+    const _vo2 = pf(c[16]);
+    data.push({
+      deleted: false,
+      time:   c[1].trim(),
+      time_s: pt(c[1]),
+      palier: c[2].trim(),
+      charge: pf(c[3]),
+      fc:     _fc,
+      fr:     pf(c[11]),
+      ve:     pf(c[12]),
+      vo2:    _vo2,
+      vco2:   pf(c[17]),
+      sao2:   pf(c[21]),
+      peto2:  peto2Idx  >= 0 && c[peto2Idx]  !== undefined ? pf(c[peto2Idx])  : null,
+      petco2: petco2Idx >= 0 && c[petco2Idx] !== undefined ? pf(c[petco2Idx]) : null,
+      // Graphiques complémentaires
+      po2:  (_fc !== null && _fc > 0 && _vo2 !== null) ? +(_vo2 * 1000 / _fc).toFixed(2) : null,
+      vri:  vriIdx  >= 0 && c[vriIdx]  !== undefined ? pf(c[vriIdx])  : null,
+      vre:  vreIdx  >= 0 && c[vreIdx]  !== undefined ? pf(c[vreIdx])  : null,
+      ldvt: ldvtIdx >= 0 && c[ldvtIdx] !== undefined ? pf(c[ldvtIdx]) : null,
+    });
+  }
+  return data.length > 0 ? data : null;
+}
+
+function findChargeAtTime(data, time_s) {
+  let best = null, bestDiff = Infinity;
+  data.forEach(r => {
+    if (r.deleted || r.time_s === null) return;
+    const d = Math.abs(r.time_s - time_s);
+    if (d < bestDiff) { bestDiff = d; best = r.charge; }
+  });
+  return best;
+}
+
+function buildPalierZones(data) {
+  const zones = []; let cur = null, si = 0;
+  data.forEach((r, i) => {
+    if (r.palier !== cur) {
+      if (cur !== null) zones.push({
+        palier: cur,
+        ts0: data[si].time_s,     ts1: data[i-1].time_s,
+        ch0: data[si].charge,     ch1: data[i-1].charge,
+        t0:  data[si].time,       t1:  data[i-1].time,
+      });
+      cur = r.palier; si = i;
+    }
+  });
+  if (cur !== null) zones.push({
+    palier: cur,
+    ts0: data[si].time_s,          ts1: data[data.length-1].time_s,
+    ch0: data[si].charge,          ch1: data[data.length-1].charge,
+    t0:  data[si].time,            t1:  data[data.length-1].time,
+  });
+  return zones;
+}
+
+// ================================================================
+//  FILE MANAGEMENT
+// ================================================================
+function getActiveFile() { return loadedFiles.find(f => f.id === activeFileId) || null; }
+
+function addFiles(fileList) {
+  const file = Array.from(fileList)[0]; // une seule épreuve à la fois
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = parseVO2CSV(e.target.result);
+    if (!data) { alert('Fichier invalide : ' + file.name); return; }
+    // Réinitialisation complète avant de charger la nouvelle épreuve
+    loadedFiles.splice(0);
+    activeFileId = null;
+    const id    = Date.now().toString() + Math.random();
+    const obj   = {
+      id, color: FILE_PALETTE[0],
+      name: file.name.replace(/\.[^.]+$/, ''),
+      data,
+      palierZones: buildPalierZones(data),
+      visible: true,
+      markers: { sv1: null, sv2: null, vo2max: null, warmup: null, effort_end: null, sl1: null, sl2: null },
+    };
+    loadedFiles.push(obj);
+    activeFileId = id;
+    document.getElementById('mainContent').classList.remove('hidden-section');
+    rebuildDropZone();
+    rebuildFileList();
+    rebuildAllDatasets();
+    updateStats();
+    updatePalierLegend();
+    updateMarkerUI();
+    updateSummary();
+    buildDataTable();
+    showPatientModal(obj);
+  };
+  reader.readAsText(file, 'latin1');
+}
+
+function removeFile(id) {
+  const idx = loadedFiles.findIndex(f => f.id === id);
+  if (idx < 0) return;
+  loadedFiles.splice(idx, 1);
+  if (activeFileId === id) activeFileId = loadedFiles.length ? loadedFiles[0].id : null;
+  if (!loadedFiles.length) {
+    document.getElementById('mainContent').classList.add('hidden-section');
+    rebuildDropZone();
+  }
+  rebuildFileList();
+  rebuildAllDatasets();
+  updateStats();
+  updatePalierLegend();
+  updateMarkerUI();
+  updateSummary();
+}
+
+function toggleVisibility(id) {
+  const f = loadedFiles.find(f => f.id === id);
+  if (f) { f.visible = !f.visible; rebuildFileList(); rebuildAllDatasets(); }
+}
+
+function setActiveFile(id) {
+  activeFileId = id;
+  rebuildFileList();
+  rebuildAllDatasets();
+  updateStats();
+  updatePalierLegend();
+  updateMarkerUI();
+  updateSummary();
+  buildDataTable();
+}
+
+// ================================================================
+//  X-AXIS HELPERS
+// ================================================================
+function xv(r) { return xAxisMode === 'time' ? r.time_s : r.charge; }
+
+function formatTime(s) {
+  if (s === null || s === undefined) return '';
+  const m = Math.floor(s / 60), sec = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+
+// win=1 → pas de lissage
+// win=2 → moyenne [i-1, i]
+// win=3 → moyenne [i-1, i, i+1]
+// win=4 → moyenne [i-2, i-1, i, i+1]
+// win=5 → moyenne [i-2, i-1, i, i+1, i+2]
+function getSmoothedValue(data, i, field, win) {
+  if (data[i].deleted) return null;
+  if (win <= 1) return data[i][field];
+  const left  = Math.floor(win / 2);
+  const right = win - 1 - left;
+  const vals  = [];
+  for (let j = Math.max(0, i - left); j <= Math.min(data.length - 1, i + right); j++) {
+    if (!data[j].deleted && data[j][field] !== null) vals.push(data[j][field]);
+  }
+  return vals.length > 0 ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+}
+
+// Régression linéaire sur le segment [fromIdx, toIdx] (valeurs lissées)
+// Retourne { slope, intercept } ou null si insuffisant
+function getSegmentRegression(data, fromIdx, toIdx, field) {
+  const pts = [];
+  const i0 = Math.min(fromIdx, toIdx), i1 = Math.max(fromIdx, toIdx);
+  for (let j = i0; j <= i1; j++) {
+    if (!data[j] || data[j].deleted) continue;
+    const yv = getSmoothedValue(data, j, field, smoothingWindow);
+    const xv = xAxisMode === 'time' ? data[j].time_s : data[j].charge;
+    if (yv !== null && xv !== null) pts.push({ x: xv, y: yv });
+  }
+  if (pts.length < 3) return null;
+  const n     = pts.length;
+  const sumX  = pts.reduce((s, p) => s + p.x, 0);
+  const sumY  = pts.reduce((s, p) => s + p.y, 0);
+  const sumXY = pts.reduce((s, p) => s + p.x * p.y, 0);
+  const sumX2 = pts.reduce((s, p) => s + p.x * p.x, 0);
+  const denom = n * sumX2 - sumX * sumX;
+  if (Math.abs(denom) < 1e-10) return null;
+  const slope     = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}
+
+// Dessine les droites de régression segmentées sur le graphique VE
+// Couleurs : orange (avant SV1) · rouge (SV1→SV2) · violet (après SV2)
+function drawSegmentedVE(ctx, chartArea, scales, file) {
+  const d      = file.data;
+  const sv1Idx = file.markers.sv1;
+  const sv2Idx = file.markers.sv2;
+  if (sv1Idx === null && sv2Idx === null) return;
+
+  // Bornes : on se limite à la zone Épreuve si les marqueurs de zone sont posés,
+  // sinon on utilise l'ensemble du tracé comme repli.
+  const absFirst = d.findIndex(r => !r.deleted && r.ve !== null);
+  const absLast  = d.reduce((acc, r, i) => (!r.deleted && r.ve !== null ? i : acc), -1);
+  if (absFirst < 0 || absLast < 0) return;
+
+  const rangeStart = file.markers.warmup     ?? absFirst;
+  const rangeEnd   = file.markers.effort_end ?? absLast;
+
+  // Segments et couleurs selon les marqueurs SV placés (bornés à la zone Épreuve)
+  let segs, cols;
+  if (sv1Idx !== null && sv2Idx !== null) {
+    segs = [[rangeStart, sv1Idx], [sv1Idx, sv2Idx], [sv2Idx, rangeEnd]];
+    cols = [MARKER_COLORS.sv1, MARKER_COLORS.sv2, MARKER_COLORS.vo2max];
+  } else if (sv1Idx !== null) {
+    segs = [[rangeStart, sv1Idx], [sv1Idx, rangeEnd]];
+    cols = [MARKER_COLORS.sv1, MARKER_COLORS.sv2];
+  } else {
+    segs = [[rangeStart, sv2Idx], [sv2Idx, rangeEnd]];
+    cols = [MARKER_COLORS.sv1, MARKER_COLORS.vo2max];
+  }
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(chartArea.left, chartArea.top,
+           chartArea.right - chartArea.left, chartArea.bottom - chartArea.top);
+  ctx.clip();
+
+  segs.forEach(([i0, i1], si) => {
+    const reg = getSegmentRegression(d, i0, i1, 've');
+    if (!reg) return;
+    const xv0 = xAxisMode === 'time' ? d[i0].time_s : d[i0].charge;
+    const xv1 = xAxisMode === 'time' ? d[i1].time_s : d[i1].charge;
+    if (xv0 === null || xv1 === null) return;
+
+    ctx.beginPath();
+    ctx.moveTo(scales.x.getPixelForValue(xv0),
+               scales.y.getPixelForValue(reg.slope * xv0 + reg.intercept));
+    ctx.lineTo(scales.x.getPixelForValue(xv1),
+               scales.y.getPixelForValue(reg.slope * xv1 + reg.intercept));
+    ctx.strokeStyle = cols[si];
+    ctx.lineWidth   = 2;
+    ctx.setLineDash([7, 3]);
+    ctx.stroke();
+  });
+
+  ctx.restore();
+}
+
+function setSmoothing(win) {
+  smoothingWindow = win;
+  [1, 2, 3, 4, 5].forEach(n => {
+    document.getElementById('smooth-' + n).classList.toggle('active', n === win);
+  });
+  rebuildAllDatasets();
+}
+
+function setXAxis(mode) {
+  xAxisMode = mode;
+  document.getElementById('xbtn-time').classList.toggle('active', mode==='time');
+  document.getElementById('xbtn-charge').classList.toggle('active', mode==='charge');
+  rebuildAllDatasets();
+  updatePalierLegend();
+}
+
+// ================================================================
+//  PLUGINS
+// ================================================================
+const chartBgPlugin = {
+  id: 'chartBg',
+  beforeDraw(chart) {
+    const { ctx, width, height } = chart;
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = document.body.classList.contains('light') ? '#ffffff' : '#1e2535';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
+};
+
+const zonePlugin = {
+  id: 'zoneBg',
+  beforeDraw(chart) {
+    const af = getActiveFile(); if (!af) return;
+    const { ctx, chartArea, scales } = chart; if (!chartArea) return;
+    const wIdx = af.markers.warmup;
+    const eIdx = af.markers.effort_end;
+    if (wIdx === null && eIdx === null) return;
+
+    const d = af.data;
+    const firstValid = d.find(r => !r.deleted);
+    const lastValid  = [...d].reverse().find(r => !r.deleted);
+    if (!firstValid || !lastValid) return;
+
+    const xOf = r => xAxisMode === 'time' ? r.time_s : r.charge;
+    const xStart  = xOf(firstValid);
+    const xEnd    = xOf(lastValid);
+    const xWarm   = wIdx !== null ? xOf(d[wIdx])   : null;
+    const xEffort = eIdx !== null ? xOf(d[eIdx])   : null;
+
+    ctx.save();
+
+    const fillZone = (x0, x1, color) => {
+      const px0 = Math.max(chartArea.left,  Math.min(chartArea.right, scales.x.getPixelForValue(x0)));
+      const px1 = Math.max(chartArea.left,  Math.min(chartArea.right, scales.x.getPixelForValue(x1)));
+      if (px1 <= px0) return { px0, px1 };
+      ctx.fillStyle = color;
+      ctx.fillRect(px0, chartArea.top, px1 - px0, chartArea.bottom - chartArea.top);
+      return { px0, px1 };
+    };
+
+    const labelZone = (px0, px1, text, col) => {
+      if (px1 - px0 < 52) return;
+      ctx.save();
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillStyle = col;
+      ctx.globalAlpha = 0.55;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(text, (px0 + px1) / 2, chartArea.top + 5);
+      ctx.restore();
+    };
+
+    // ── Échauffement : début → Fin Échauff. ──
+    if (xWarm !== null) {
+      const { px0, px1 } = fillZone(xStart, xWarm, '#06b6d41c');
+      labelZone(px0, px1, 'Échauffement', '#06b6d4');
+    }
+    // ── Récupération : Fin Épreuve → fin ──
+    if (xEffort !== null) {
+      const { px0, px1 } = fillZone(xEffort, xEnd, '#f974161c');
+      labelZone(px0, px1, 'Récupération', '#f97416');
+    }
+    // ── Épreuve (entre les deux marqueurs) — très subtil ──
+    if (xWarm !== null && xEffort !== null) {
+      const x0 = Math.min(xWarm, xEffort), x1 = Math.max(xWarm, xEffort);
+      const { px0, px1 } = fillZone(x0, x1, '#10b98110');
+      labelZone(px0, px1, 'Épreuve', '#10b981');
+    }
+
+    ctx.restore();
+  }
+};
+
+const palierBgPlugin = {
+  id: 'palierBg',
+  beforeDraw(chart) {
+    const af = getActiveFile(); if (!af) return;
+    const { ctx, chartArea, scales } = chart; if (!chartArea) return;
+    ctx.save();
+    af.palierZones.forEach(z => {
+      const x0 = scales.x.getPixelForValue(xAxisMode==='time' ? z.ts0 : z.ch0);
+      const x1 = scales.x.getPixelForValue(xAxisMode==='time' ? z.ts1 : z.ch1);
+      const col = PALIER_COLORS[z.palier] || '#666';
+      ctx.fillStyle = col + '18';
+      ctx.fillRect(x0, chartArea.top, x1-x0, chartArea.bottom-chartArea.top);
+    });
+    ctx.restore();
+  }
+};
+
+// Droite horizontale PETCO₂ tracée au niveau du SV2 sur le graphique PET
+function drawPETCO2SV2Line(ctx, chartArea, scales, file) {
+  const sv2Idx = file.markers.sv2;
+  if (sv2Idx === null) return;
+  const val = getSmoothedValue(file.data, sv2Idx, 'petco2', smoothingWindow);
+  if (val === null) return;
+  if (!scales.y) return;
+  const yPx = scales.y.getPixelForValue(val);
+  if (yPx < chartArea.top || yPx > chartArea.bottom) return;
+
+  const COL = '#a855f7'; // couleur PETCO₂
+
+  ctx.save();
+
+  // ── Ligne horizontale pointillée de bord à bord ──
+  ctx.beginPath();
+  ctx.moveTo(chartArea.left, yPx);
+  ctx.lineTo(chartArea.right, yPx);
+  ctx.strokeStyle = COL;
+  ctx.lineWidth   = 1.5;
+  ctx.setLineDash([6, 3]);
+  ctx.stroke();
+
+  // ── Badge valeur sur le bord droit ──
+  ctx.setLineDash([]);
+  ctx.font = 'bold 10px sans-serif';
+  const lbl = 'PETCO₂ SV2 : ' + val.toFixed(1) + ' mmHg';
+  const tw  = ctx.measureText(lbl).width + 10;
+  const ph  = 16, pr = 4;
+  const bx  = chartArea.right - tw - 4;
+  const by  = yPx - ph / 2;
+  ctx.fillStyle = COL;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, tw, ph, pr);
+  ctx.fill();
+  ctx.fillStyle    = '#fff';
+  ctx.textAlign    = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(lbl, chartArea.right - 9, yPx);
+
+  ctx.restore();
+}
+
+const markerPlugin = {
+  id: 'markerLines',
+  afterDraw(chart) {
+    const { ctx, chartArea, scales } = chart; if (!chartArea) return;
+    loadedFiles.forEach(file => {
+      if (!file.visible) return;
+      const isActive = file.id === activeFileId;
+      const _extraIds = new Set(EXTRA_CHART_CFGS.map(c => c.canvasId));
+      Object.entries(file.markers).forEach(([key, idx]) => {
+        if (idx === null) return;
+        // SL1/SL2 : uniquement sur le graphique cinétique lactique
+        if (SL_KEYS.includes(key) && chart.canvas.id !== 'chartLAC') return;
+        // Sur les graphiques complémentaires : uniquement début/fin d'épreuve
+        // (SL_KEYS autorisés sur chartLAC — déjà filtré par la règle précédente)
+        if (_extraIds.has(chart.canvas.id) && !ZONE_KEYS.includes(key) && !SL_KEYS.includes(key)) return;
+
+        const r    = file.data[idx];
+        const xVal = xAxisMode === 'time' ? r.time_s : r.charge;
+        const col  = MARKER_COLORS[key];
+        const lbl  = MARKER_LABELS[key];
+        const x    = scales.x.getPixelForValue(xVal);
+        if (x < chartArea.left || x > chartArea.right) return;
+        const isZone = ZONE_KEYS.includes(key);
+
+        // ── Rendu spécial SL1/SL2 sur le graphique lactate ──
+        if (SL_KEYS.includes(key) && chart.canvas.id === 'chartLAC') {
+          if (!scales.y) return;
+          const markerTime = r.time_s;
+          if (markerTime === null) return;
+          // Interpolation linéaire de la valeur lactate au temps du marqueur
+          const lacPts = [...(file.lactatePoints || [])].sort((a, b) => a.time_s - b.time_s);
+          let lacY = null;
+          if (lacPts.length > 0) {
+            let lo = null, hi = null;
+            for (const p of lacPts) {
+              if (p.time_s <= markerTime) lo = p;
+              if (p.time_s >= markerTime && !hi) hi = p;
+            }
+            if (lo && hi && lo.time_s !== hi.time_s) {
+              const t = (markerTime - lo.time_s) / (hi.time_s - lo.time_s);
+              lacY = lo.value + t * (hi.value - lo.value);
+            } else if (lo) lacY = lo.value;
+            else if (hi)   lacY = hi.value;
+          }
+          if (lacY === null) return;
+          const yPx     = scales.y.getPixelForValue(lacY);
+          const lineCol = isActive ? col : col + '66';
+          ctx.save();
+          ctx.strokeStyle = lineCol;
+          ctx.lineWidth   = isActive ? 1.5 : 1;
+          ctx.setLineDash([5, 3]);
+          // Ligne verticale pointillée : axe X → point sur la courbe
+          ctx.beginPath(); ctx.moveTo(x, chartArea.bottom); ctx.lineTo(x, yPx); ctx.stroke();
+          // Ligne horizontale pointillée : axe Y → point sur la courbe
+          ctx.beginPath(); ctx.moveTo(chartArea.left, yPx); ctx.lineTo(x, yPx); ctx.stroke();
+          ctx.setLineDash([]);
+          // Point coloré sur la courbe
+          ctx.beginPath(); ctx.arc(x, yPx, isActive ? 5 : 3, 0, Math.PI * 2);
+          ctx.fillStyle = col; ctx.fill();
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = isActive ? 1.5 : 1; ctx.stroke();
+          if (isActive) {
+            ctx.font = 'bold 10px sans-serif';
+            // Étiquette au-dessus du point
+            const tw = ctx.measureText(lbl).width + 10;
+            const ph = 16, pr = 5;
+            const labelY = Math.max(chartArea.top + 2, yPx - ph - 6);
+            ctx.fillStyle = col;
+            ctx.beginPath(); ctx.roundRect(x - tw / 2, labelY, tw, ph, pr); ctx.fill();
+            ctx.fillStyle = '#0f1117';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(lbl, x, labelY + ph / 2);
+            // Badge valeur lactate sur l'axe Y
+            const valLbl = lacY.toFixed(1) + ' mmol/L';
+            ctx.font = '9px sans-serif';
+            const vw = ctx.measureText(valLbl).width + 8;
+            const vh = 14, vr = 3;
+            const vx = chartArea.left - vw - 2;
+            const vy = yPx - vh / 2;
+            ctx.fillStyle = col;
+            ctx.beginPath(); ctx.roundRect(vx, vy, vw, vh, vr); ctx.fill();
+            ctx.fillStyle = '#0f1117';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(valLbl, vx + vw / 2, yPx);
+          }
+          ctx.restore();
+          return;
+        }
+
+        ctx.save();
+        // line
+        ctx.beginPath();
+        ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom);
+        ctx.strokeStyle = isActive ? col : col + '55';
+        ctx.lineWidth   = isActive ? (isZone ? 1.5 : 2) : 1;
+        ctx.setLineDash(isActive ? (isZone ? [] : [7,3]) : [4,4]);
+        ctx.stroke();
+        // label pill (active only)
+        if (isActive) {
+          ctx.setLineDash([]);
+          const tw = ctx.measureText(lbl).width + 10;
+          const ph = 16, pr = 5, py = chartArea.top + 2;
+          ctx.fillStyle = col;
+          ctx.beginPath(); ctx.roundRect(x-tw/2, py, tw, ph, pr); ctx.fill();
+          ctx.fillStyle = '#0f1117';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(lbl, x, py+ph/2);
+        }
+        // dots on each visible dataset of this file
+        chart.data.datasets.forEach(ds => {
+          if (!ds._fileId || ds._fileId !== file.id) return;
+          const yVal = ds._getY ? ds._getY(r) : r[ds._field];
+          if (yVal === null || yVal === undefined) return;
+          const yPx = scales.y.getPixelForValue(yVal);
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.arc(x, yPx, isActive ? (isZone ? 3 : 5) : (isZone ? 2 : 3), 0, Math.PI*2);
+          ctx.fillStyle   = ds.borderColor;
+          ctx.fill();
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = isActive ? 1.5 : 1;
+          ctx.stroke();
+        });
+        ctx.restore();
+      });
+
+      // Droites de régression segmentées sur le graphique VE (fichier actif uniquement)
+      if (isActive && chart.canvas.id === 'chartVE') {
+        drawSegmentedVE(ctx, chartArea, scales, file);
+      }
+      // Droite horizontale PETCO₂ au niveau du SV2 (graphique PET, fichier actif)
+      if (isActive && chart.canvas.id === 'chartPET') {
+        drawPETCO2SV2Line(ctx, chartArea, scales, file);
+      }
+      // Ligne limite à 0 sur le graphique réserve ventilatoire (fichier actif)
+      if (isActive && chart.canvas.id === 'chartBR' && scales.y) {
+        const p = file.patient || {};
+        const vemsM = parseFloat(p.vems);
+        const vemsTheo = calcVEMSTheo(p.age, p.sexe, p.taille);
+        const vems = (!isNaN(vemsM) && vemsM > 0) ? vemsM : (vemsTheo ? vemsTheo.pred : null);
+        if (vems) {
+          const mult = (p.profil === 'sportif' || p.profil === 'haut_niveau') ? 40 : 35;
+          const mvv  = +(vems * mult).toFixed(1);
+          const y0px = scales.y.getPixelForValue(0);
+          if (y0px >= chartArea.top && y0px <= chartArea.bottom) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, y0px);
+            ctx.lineTo(chartArea.right, y0px);
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth   = 1.5;
+            ctx.setLineDash([6, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.font = 'bold 10px sans-serif';
+            const lbl = 'Limite MVV : ' + mvv + ' L/min (×' + mult + ')';
+            const tw  = ctx.measureText(lbl).width + 10;
+            const ph  = 16, pr = 4;
+            ctx.fillStyle = '#f43f5e';
+            ctx.beginPath(); ctx.roundRect(chartArea.left + 4, y0px - ph / 2, tw, ph, pr); ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            ctx.fillText(lbl, chartArea.left + 9, y0px);
+            ctx.restore();
+          }
+        }
+      }
+    });
+  }
+};
+
+// ================================================================
+//  CHART INIT & DATASETS
+// ================================================================
+function makeBaseOptions(cfg) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 200 },
+    onClick: (evt, _el, ch) => handleChartClick(ch, evt.native),
+    interaction: { mode:'index', intersect:false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor:'#1e2535', borderColor:'#2d3748', borderWidth:1,
+        titleColor:'#94a3b8', bodyColor:'#e2e8f0',
+        callbacks: {
+          title: items => {
+            const i = items[0].dataIndex;
+            const ds = items[0].chart.data.datasets[items[0].datasetIndex];
+            const file = loadedFiles.find(f => f.id === ds._fileId);
+            if (!file) return '';
+            const r = file.data[i] || {};
+            return (file.name || '') + ' — ' + (r.time||'') + ' — Palier ' + (r.palier||'') + ' — ' + (r.charge||0) + ' W';
+          },
+          label: item => {
+            const ds = item.chart.data.datasets[item.datasetIndex];
+            const unit = cfg.unit || '';
+            const v = item.raw !== null ? Number(item.raw).toFixed(unit==='bpm'?0:2) : '—';
+            return ' ' + (ds.label||'') + ': ' + v + (unit ? ' '+unit : '');
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        type: 'linear',
+        ticks: {
+          maxTicksLimit: 14, maxRotation: 0,
+          color: '#475569', font: { size: 10 },
+          callback: val => xAxisMode==='time' ? formatTime(val) : val+'W'
+        },
+        grid: { color:'#1a2535' }
+      },
+      y: {
+        ticks: { color:'#475569', font:{ size:10 } },
+        grid: { color:'#1a2535' }
+      }
+    }
+  };
+}
+
+function makeComboOptions(cfg) {
+  const base = makeBaseOptions(cfg);
+  // Axe gauche : VO₂ / VCO₂ (L/min)
+  base.scales.y.title = {
+    display: true, text: 'VO₂ / VCO₂ (L/min)',
+    color: '#64748b', font: { size: 10 },
+  };
+  // Axe droit : VE (L/min)
+  base.scales.y1 = {
+    type: 'linear', position: 'right',
+    title: { display: true, text: 'VE (L/min)', color: '#64748b', font: { size: 10 } },
+    ticks: { color: '#475569', font: { size: 10 } },
+    grid:  { drawOnChartArea: false, color: '#1a2535' },
+  };
+  // Tooltip : afficher unité correcte selon l'axe
+  base.plugins.tooltip.callbacks.label = item => {
+    const ds  = item.chart.data.datasets[item.datasetIndex];
+    const v   = item.raw !== null ? Number(item.raw).toFixed(2) : '—';
+    return ' ' + (ds.label || '') + ': ' + v + ' L/min';
+  };
+  return base;
+}
+
+function initCharts() {
+  Chart.defaults.color       = '#64748b';
+  Chart.defaults.borderColor = '#1e2d3d';
+  CHART_CFGS.forEach(cfg => {
+    const ctx = document.getElementById(cfg.canvasId).getContext('2d');
+    charts[cfg.key] = new Chart(ctx, {
+      type: 'line',
+      plugins: [chartBgPlugin, zonePlugin, palierBgPlugin, markerPlugin],
+      data: { datasets: [] },
+      options: cfg.key === 'combo' ? makeComboOptions(cfg) : makeBaseOptions(cfg),
+    });
+  });
+  EXTRA_CHART_CFGS.forEach(cfg => {
+    const ctx = document.getElementById(cfg.canvasId).getContext('2d');
+    charts[cfg.key] = new Chart(ctx, {
+      type: 'line',
+      plugins: [chartBgPlugin, zonePlugin, palierBgPlugin, markerPlugin],
+      data: { datasets: [] },
+      options: makeBaseOptions(cfg),
+    });
+  });
+}
+
+function buildDatasets(cfg) {
+  const sets = [];
+  loadedFiles.forEach(file => {
+    if (!file.visible) return;
+    const isActive = file.id === activeFileId;
+    const base = {
+      _fileId: file.id,
+      pointRadius: 0, pointHoverRadius: isActive ? 4 : 2,
+      fill: false, tension: 0.2,
+      borderWidth: isActive ? 2.5 : 1,
+      spanGaps: true,
+    };
+    if (cfg.field === 'pet') {
+      const alpha = isActive ? '' : '66';
+      [
+        { f:'peto2',  lbl:'PETO₂',  col:'#f97316' },
+        { f:'petco2', lbl:'PETCO₂', col:'#a855f7' },
+      ].forEach(({ f, lbl, col }) => {
+        const hasData = file.data.some(r => !r.deleted && r[f] !== null);
+        if (!hasData) return; // ne pas ajouter si colonne absente du fichier
+        sets.push({
+          ...base,
+          _field: f,
+          _getY:  r => r[f],
+          label:  lbl + ' (' + file.name + ')',
+          data:   file.data.map((r, i) => ({
+            x: xv(r),
+            y: getSmoothedValue(file.data, i, f, smoothingWindow),
+          })),
+          borderColor:     col + alpha,
+          borderDash:      isActive ? [] : [3, 2],
+          backgroundColor: 'transparent',
+          fill:            false,
+        });
+      });
+    } else if (cfg.field === 'combo') {
+      // Graphique combiné : VO₂ + VCO₂ sur axe gauche (y), VE sur axe droit (y1)
+      const COMBO_COLORS = { vo2:'#3b82f6', vco2:'#06b6d4', ve:'#10b981' };
+      const alpha = isActive ? '' : '66';
+      [
+        { f:'vo2',  lbl:'VO₂',  axis:'y'  },
+        { f:'vco2', lbl:'VCO₂', axis:'y'  },
+        { f:'ve',   lbl:'VE',   axis:'y1' },
+      ].forEach(({ f, lbl, axis }) => {
+        sets.push({
+          ...base,
+          _field: f,
+          _getY: r => r[f],
+          yAxisID: axis,
+          label: lbl + ' (' + file.name + ')',
+          data: file.data.map((r, i) => ({
+            x: xv(r),
+            y: getSmoothedValue(file.data, i, f, smoothingWindow),
+          })),
+          borderColor: (isActive ? COMBO_COLORS[f] : COMBO_COLORS[f]) + alpha,
+          borderDash:  isActive ? [] : [3, 2],
+          backgroundColor: 'transparent',
+          fill: false,
+        });
+      });
+    } else if (cfg.field === 'eq') {
+      const alpha = isActive ? '' : '66';
+      sets.push({
+        ...base, _field:'eqO2',
+        _getY: r => (r.vo2  && r.vo2  > 0) ? +(r.ve / r.vo2 ).toFixed(2) : null,
+        label: 'EqO₂ (' + file.name + ')',
+        data:  file.data.map((r, i) => { const ve = getSmoothedValue(file.data, i, 've', smoothingWindow); const vo2 = getSmoothedValue(file.data, i, 'vo2', smoothingWindow); return { x: xv(r), y: (ve !== null && vo2 && vo2 > 0) ? +(ve/vo2).toFixed(2) : null }; }),
+        borderColor: '#f59e0b' + alpha,
+        borderDash: isActive ? [] : [3,2],
+      });
+      sets.push({
+        ...base, _field:'eqCO2',
+        _getY: r => (r.vco2 && r.vco2 > 0) ? +(r.ve / r.vco2).toFixed(2) : null,
+        label: 'EqCO₂ (' + file.name + ')',
+        data:  file.data.map((r, i) => { const ve = getSmoothedValue(file.data, i, 've', smoothingWindow); const vco2 = getSmoothedValue(file.data, i, 'vco2', smoothingWindow); return { x: xv(r), y: (ve !== null && vco2 && vco2 > 0) ? +(ve/vco2).toFixed(2) : null }; }),
+        borderColor: '#38bdf8' + alpha,
+        borderDash: isActive ? [] : [3,2],
+      });
+    } else if (cfg.field === 'po2') {
+      const alpha = isActive ? '' : '66';
+      const hasData = file.data.some(r => !r.deleted && r.po2 !== null);
+      if (hasData) sets.push({
+        ...base, _field:'po2',
+        _getY: r => r.po2,
+        label: 'Pouls O₂ (' + file.name + ')',
+        data:  file.data.map((r, i) => ({ x: xv(r), y: getSmoothedValue(file.data, i, 'po2', smoothingWindow) })),
+        borderColor:     '#e879f9' + alpha,
+        borderDash:      isActive ? [] : [3, 2],
+        backgroundColor: 'transparent',
+        fill: false,
+      });
+    } else if (cfg.field === 'br') {
+      // Réserve ventilatoire = MVV - VE (par cycle)
+      const p = file.patient || {};
+      const vemsM    = parseFloat(p.vems);
+      const vemsTheo = calcVEMSTheo(p.age, p.sexe, p.taille);
+      const vems     = (!isNaN(vemsM) && vemsM > 0) ? vemsM : (vemsTheo ? vemsTheo.pred : null);
+      if (!vems) return; // VEMS non disponible → pas de courbe
+      const mult = (p.profil === 'sportif' || p.profil === 'haut_niveau') ? 40 : 35;
+      const mvv  = vems * mult;
+      const alpha = isActive ? '' : '66';
+      const hasVE = file.data.some(r => !r.deleted && r.ve !== null);
+      if (!hasVE) return;
+      sets.push({
+        ...base,
+        _field: 'rr',
+        _getY:  r => (r.ve !== null) ? +(mvv - r.ve).toFixed(2) : null,
+        label:  'Rés. vent. (' + file.name + ')',
+        data:   file.data.map((r, i) => {
+          const ve = getSmoothedValue(file.data, i, 've', smoothingWindow);
+          return { x: xv(r), y: ve !== null ? +(mvv - ve).toFixed(2) : null };
+        }),
+        borderColor:     '#34d399' + alpha,
+        borderDash:      isActive ? [] : [3, 2],
+        backgroundColor: 'transparent',
+        fill:            false,
+      });
+    } else if (cfg.field === 'lac') {
+      const pts = file.lactatePoints;
+      if (!pts || pts.length < 1) return;
+      const alpha = isActive ? '' : '66';
+      sets.push({
+        ...base,
+        _field: 'lac',
+        _getY:  null,
+        label:  'Lactate (' + file.name + ')',
+        data:   pts.map(p => ({
+          x: xAxisMode === 'time' ? p.time_s : (findChargeAtTime(file.data, p.time_s) ?? p.time_s),
+          y: p.value,
+        })),
+        borderColor:     '#f472b6' + alpha,
+        borderDash:      isActive ? [] : [3, 2],
+        backgroundColor: '#f472b633',
+        fill:            false,
+        pointRadius:     isActive ? 6 : 4,
+        pointHoverRadius: 8,
+        tension: 0.4,
+      });
+    } else if (cfg.field === 'vd') {
+      const alpha = isActive ? '' : '66';
+      const hasData = file.data.some(r => !r.deleted && r.ldvt !== null);
+      if (hasData) sets.push({
+        ...base, _field:'ldvt',
+        _getY: r => r.ldvt,
+        label: 'LD/VT (' + file.name + ')',
+        data:  file.data.map((r, i) => ({ x: xv(r), y: getSmoothedValue(file.data, i, 'ldvt', smoothingWindow) })),
+        borderColor:     '#fbbf24' + alpha,
+        borderDash:      isActive ? [] : [3, 2],
+        backgroundColor: 'transparent',
+        fill: false,
+      });
+    } else {
+      sets.push({
+        ...base, _field: cfg.field,
+        _getY: r => r[cfg.field],
+        label: cfg.title + ' (' + file.name + ')',
+        data:  file.data.map((r, i) => ({ x: xv(r), y: getSmoothedValue(file.data, i, cfg.field, smoothingWindow) })),
+        borderColor:     isActive ? (['fc','vo2','vco2','ve','fr'].includes(cfg.field)
+          ? { fc:'#ef4444',vo2:'#3b82f6',vco2:'#06b6d4',ve:'#10b981',fr:'#f97316' }[cfg.field]
+          : file.color) : file.color + '99',
+        backgroundColor: 'transparent',
+        fill: false,
+      });
+    }
+  });
+  return sets;
+}
+
+function rebuildAllDatasets() {
+  [...CHART_CFGS, ...EXTRA_CHART_CFGS].forEach(cfg => {
+    const ch = charts[cfg.key];
+    if (!ch) return;
+    ch.data.datasets = buildDatasets(cfg);
+    ch.update('none');
+  });
+}
+
+// ================================================================
+//  MARKERS
+// ================================================================
+function activateMarker(key) {
+  activeMarker = key;
+  Object.keys(MARKER_COLORS).forEach(k => {
+    const btn = document.getElementById('btn-'+k);
+    if (!btn) return;
+    if (k === key) {
+      btn.classList.add('active');
+      btn.style.background = MARKER_COLORS[k];
+      btn.style.color = '#0f1117';
+    } else {
+      btn.classList.remove('active');
+      btn.style.background = 'transparent';
+      btn.style.color = MARKER_COLORS[k];
+    }
+  });
+  const hint = SL_KEYS.includes(key)
+    ? "Mode " + MARKER_LABELS[key] + " actif — cliquez sur le graphique Lactate pour placer le seuil."
+    : ZONE_KEYS.includes(key)
+      ? "Mode " + MARKER_LABELS[key] + " actif — cliquez pour délimiter la zone."
+      : "Mode " + MARKER_LABELS[key] + " actif — cliquez sur un graphique pour placer le seuil.";
+  document.getElementById('markerHint').textContent = hint;
+  if (SL_KEYS.includes(key)) {
+    // Seul le graphique lactate est cliquable pour les seuils lactiques
+    document.querySelectorAll('.chart-wrap').forEach(w => w.classList.remove('placing'));
+    const lacWrap = document.getElementById('wrap-lac');
+    if (lacWrap) lacWrap.classList.add('placing');
+    // Ouvrir la section complémentaires si elle est fermée
+    const extraWrap = document.getElementById('extraChartsWrap');
+    if (extraWrap && extraWrap.style.display === 'none') toggleExtraCharts();
+  } else {
+    document.querySelectorAll('.chart-wrap').forEach(w => w.classList.add('placing'));
+  }
+}
+
+function deactivateMarker() {
+  activeMarker = null;
+  Object.keys(MARKER_COLORS).forEach(k => {
+    const btn = document.getElementById('btn-'+k);
+    if (!btn) return;
+    btn.classList.remove('active');
+    btn.style.background = 'transparent';
+    btn.style.color = MARKER_COLORS[k];
+  });
+  document.getElementById('markerHint').textContent =
+    "Sélectionnez un marqueur puis cliquez sur un graphique.";
+  document.querySelectorAll('.chart-wrap').forEach(w => w.classList.remove('placing'));
+}
+
+function handleChartClick(chart, evt) {
+  if (wasDraggingMarker) { wasDraggingMarker = false; return; }
+  if (!activeMarker || !activeFileId) return;
+  const af = getActiveFile(); if (!af) return;
+  // SL1/SL2 ne peuvent être placés que sur le graphique cinétique lactique
+  if (SL_KEYS.includes(activeMarker) && chart.canvas.id !== 'chartLAC') return;
+  const rect  = chart.canvas.getBoundingClientRect();
+  const xPx   = evt.clientX - rect.left;
+  const xScale = chart.scales.x; if (!xScale) return;
+  const xVal   = xScale.getValueForPixel(xPx);
+  // Find nearest data point in active file
+  let bestIdx = 0, bestDiff = Infinity;
+  af.data.forEach((r, i) => {
+    const rv = xAxisMode==='time' ? r.time_s : r.charge;
+    const diff = Math.abs(rv - xVal);
+    if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+  });
+  af.markers[activeMarker] = bestIdx;
+  Object.values(charts).forEach(c => c.update('none'));
+  updateSummary();
+  // Auto-désactivation : on sort du mode placement après chaque clic
+  // pour ne pas bloquer le glisser-déposer sur les autres marqueurs
+  deactivateMarker();
+}
+
+function deleteMarker(fileId, key) {
+  const f = loadedFiles.find(f => f.id === fileId);
+  if (f) { f.markers[key] = null; Object.values(charts).forEach(c => c.update('none')); updateSummary(); }
+}
+
+function updateMarkerUI() {
+  const af = getActiveFile();
+  document.getElementById('markerFileLabel').textContent = af ? af.name : '';
+  updatePatientProfileUI();
+  updateLactateSeuils();
+}
+
+function updatePatientProfileUI() {
+  const af  = getActiveFile();
+  const row = document.getElementById('ptProfilRow');
+  if (!row) return;
+  row.style.display = af ? 'block' : 'none';
+  const cur = af ? (af.patient || {}).profil || '' : '';
+  ['sedentaire', 'sportif', 'haut_niveau'].forEach(v => {
+    const btn = document.getElementById('ppBtn-' + v);
+    if (btn) btn.classList.toggle('active', cur === v);
+  });
+}
+
+function setPatientProfil(val) {
+  const af = getActiveFile(); if (!af) return;
+  if (!af.patient) af.patient = {};
+  af.patient.profil = val;
+  updatePatientProfileUI();
+  // Met aussi à jour le select de la modale si elle est ouverte
+  const sel = document.getElementById('pt-profil');
+  if (sel) sel.value = val;
+  rebuildAllDatasets();
+  updateStats();
+}
+
+// ================================================================
+//  SUMMARY TABLE
+// ================================================================
+function updateSummary() {
+  const af = getActiveFile();
+  const anySet = af && SV_KEYS.some(k => af.markers[k] !== null);
+  const wrap = document.getElementById('thresholdSummary');
+  wrap.style.display = anySet ? 'block' : 'none';
+  if (!anySet || !af) return;
+
+  const rowDefs = [
+    { lbl:'Temps',        fn: (f,i)   => f.data[i].time },
+    { lbl:'Palier',       fn: (f,i)   => 'Palier ' + f.data[i].palier },
+    { lbl:'Charge',       fn: (f,i)   => f.data[i].charge + ' W' },
+    { lbl:'FC (bpm)',     fn: (f,i)   => fv(f.data[i].fc,  0) },
+    { lbl:'VO₂ (L/min)',  fn: (f,i)   => fv(f.data[i].vo2, 2) },
+    { lbl:'VCO₂ (L/min)', fn: (f,i)  => fv(f.data[i].vco2,2) },
+    { lbl:'VE (L/min)',   fn: (f,i)   => fv(f.data[i].ve,  1) },
+    { lbl:'FR (c/min)',   fn: (f,i)   => fv(f.data[i].fr,  1) },
+    { lbl:'SaO₂ (%)',     fn: (f,i)   => fv(f.data[i].sao2,1) },
+    { lbl:'EqO₂',         fn: (f,i)   => { const r=f.data[i]; return r.vo2>0?fv(r.ve/r.vo2,1):'—'; } },
+    { lbl:'EqCO₂',        fn: (f,i)   => { const r=f.data[i]; return r.vco2>0?fv(r.ve/r.vco2,1):'—'; } },
+  ];
+
+  // Ligne % VO₂max : uniquement si le marqueur VO₂max est posé
+  if (af.markers.vo2max !== null) {
+    const vo2ref = af.data[af.markers.vo2max]?.vo2 || 0;
+    rowDefs.push({
+      lbl: '% VO₂max', _isPct: true,
+      fn: (f, i, k) => {
+        if (k === 'vo2max') return '100 %';
+        if (vo2ref <= 0) return '—';
+        const v = f.data[i]?.vo2;
+        if (!v || v <= 0) return '—';
+        return Math.round(v / vo2ref * 100) + ' %';
+      }
+    });
+  }
+
+  const mkeys = ['sv1','sv2','vo2max'];
+  const cls   = { sv1:'val-sv1', sv2:'val-sv2', vo2max:'val-vo2m' };
+
+  let html = '<thead><tr><th>Paramètre</th>';
+  mkeys.forEach(k => {
+    const col = MARKER_COLORS[k];
+    html += '<th style="color:' + col + '">' + MARKER_LABELS[k];
+    if (af.markers[k] !== null)
+      html += ' <button class="del-btn" data-fid="' + af.id + '" data-key="' + k + '" onclick="deleteMarker(this.dataset.fid,this.dataset.key)">✕</button>';
+    html += '</th>';
+  });
+  html += '</tr></thead><tbody>';
+  rowDefs.forEach(row => {
+    const lblCls = row._isPct ? 'sum-lbl sum-pct-lbl' : 'sum-lbl';
+    html += '<tr><td class="' + lblCls + '">' + row.lbl + '</td>';
+    mkeys.forEach(k => {
+      if (af.markers[k] !== null) {
+        const val     = row.fn(af, af.markers[k], k);
+        const valCls  = row._isPct ? cls[k] + ' sum-pct-val' : cls[k];
+        html += '<td class="' + valCls + '">' + val + '</td>';
+      } else {
+        const emptyCls = row._isPct ? 'sum-empty sum-pct-val' : 'sum-empty';
+        html += '<td class="' + emptyCls + '">—</td>';
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('summaryTable').innerHTML = html;
+  updateMaxCriteria();
+}
+
+function fv(v, d) { return (v !== null && v !== undefined) ? Number(v).toFixed(d) : '—'; }
+
+// ================================================================
+//  STATS
+// ================================================================
+function updateStats() {
+  const af = getActiveFile();
+  const row = document.getElementById('statsRow');
+  if (!af) { row.innerHTML = ''; return; }
+  const d      = af.data;
+  const active = d.filter(r => !r.deleted);
+  const maxFC   = Math.max(...active.map(r => r.fc    || 0));
+  const maxVO2  = Math.max(...active.map(r => r.vo2   || 0));
+  const maxVE   = Math.max(...active.map(r => r.ve    || 0));
+  const maxFR   = Math.max(...active.map(r => r.fr    || 0));
+  const minSAO2 = Math.min(...active.map(r => r.sao2  || 100));
+  const maxW    = Math.max(...active.map(r => r.charge || 0));
+  const dur     = d[d.length - 1].time;
+  const p       = af.patient || {};
+  const patName = [p.prenom, p.nom].filter(Boolean).join(' ') || af.name;
+  const poids   = parseFloat(p.poids);
+  const vo2Rel  = (!isNaN(poids) && poids > 0) ? (maxVO2 * 1000 / poids).toFixed(1) : null;
+  const stats   = [
+    { l:'Patient',       v: patName,            u: p.date ? 'Test : ' + p.date : '', c: af.color },
+    { l:'Durée',         v: dur,                u:'mm:ss',    c:'#94a3b8' },
+    { l:'FC max',        v: maxFC.toFixed(0),   u:'bpm',      c:'#ef4444' },
+    { l:'VO₂ max',  v: maxVO2.toFixed(2),  u:'L/min',    c:'#3b82f6' },
+  ];
+  if (vo2Rel) stats.push({ l:'VO₂ rel.', v: vo2Rel, u:'mL/min/kg', c:'#60a5fa' });
+  stats.push(
+    { l:'VE max',        v: maxVE.toFixed(1),   u:'L/min',    c:'#10b981' },
+    { l:'FR max',        v: maxFR.toFixed(1),   u:'c/min',    c:'#f97316' },
+    { l:'SaO₂ min', v: minSAO2.toFixed(1), u:'%',        c:'#a855f7' },
+  );
+  // VEMS : mesuré en priorité, sinon théorique Quanjer 1993
+  const vemsM    = parseFloat(p.vems);
+  const vemsTheo = calcVEMSTheo(p.age, p.sexe, p.taille);
+  if (!isNaN(vemsM) && vemsM > 0) {
+    const pctStr = vemsTheo ? ' · ' + Math.round(vemsM / vemsTheo.pred * 100) + '% prédit' : '';
+    stats.push({ l:'VEMS', v: vemsM.toFixed(2), u:'L · mesuré' + pctStr, c:'#06b6d4' });
+  } else if (vemsTheo) {
+    stats.push({ l:'VEMS', v: vemsTheo.pred.toFixed(2), u:'L · théorique', c:'#64748b' });
+  }
+  // Lactatémie fin d'effort
+  const lactateVal = parseFloat(p.lactate);
+  if (!isNaN(lactateVal) && lactateVal > 0) {
+    stats.push({ l:'Lactate', v: lactateVal.toFixed(1), u:'mmol/L · fin effort', c:'#f472b6' });
+  }
+  stats.push(
+    { l:'Charge max',    v: maxW.toFixed(0),    u:'W',        c:'#eab308' },
+  );
+  row.innerHTML = stats.map(s =>
+    '<div class="stat-card"><div class="stat-label">' + s.l + '</div>' +
+    '<div class="stat-value" style="color:' + s.c + '">' + s.v + '</div>' +
+    '<div class="stat-unit">' + s.u + '</div></div>'
+  ).join('');
+  updateMaxCriteria();
+}
+
+// ================================================================
+//  FILE LIST & PALIER LEGEND UI
+// ================================================================
+function rebuildFileList() {
+  const wrap = document.getElementById('fileList');
+  if (!loadedFiles.length) { wrap.innerHTML = ''; return; }
+  const f = loadedFiles[0];
+  const style = '--fc:' + f.color + ';border-color:' + f.color + ';color:' + f.color;
+  wrap.innerHTML = '<div class="file-pill active" style="' + style + '">' +
+    '<div class="pill-dot" style="background:#0f1117"></div>' +
+    '<span>' + f.name + '</span>' +
+    '<span class="pill-remove" data-fid="' + f.id + '" onclick="event.stopPropagation();removeFile(this.dataset.fid)" title="Fermer">✕</span>' +
+  '</div>';
+}
+
+function rebuildDropZone() {
+  const zone = document.getElementById('dropZone');
+  const content = document.getElementById('dropContent');
+  if (loadedFiles.length > 0) {
+    zone.classList.add('has-files');
+    content.innerHTML = '<button class="add-more" onclick="document.getElementById(&quot;fileInput&quot;).click()">&#8635; Changer d\'&eacute;preuve</button>';
+  } else {
+    zone.classList.remove('has-files');
+    content.innerHTML = '<div class="drop-icon">&#128196;</div>' +
+      '<div class="drop-title">Glissez votre fichier CSV ici</div>' +
+      '<div class="drop-sub">ou cliquez pour s&eacute;lectionner</div>';
+  }
+}
+
+function updatePalierLegend() {
+  const af = getActiveFile();
+  const leg = document.getElementById('palierLegend');
+  if (!af) { leg.innerHTML = ''; return; }
+  leg.innerHTML = af.palierZones.map(z => {
+    const col = PALIER_COLORS[z.palier] || '#666';
+    return '<div class="palier-tag" style="background:' + col + '22;border-color:' + col + '55;color:' + col + '">' +
+      '<div class="palier-dot" style="background:' + col + '"></div>' +
+      'Palier ' + z.palier + ' — ' + z.ch0 + 'W — ' + z.t0 + '→' + z.t1 +
+    '</div>';
+  }).join('');
+}
+
+// ================================================================
+//  DROP ZONE
+// ================================================================
+function initDropZone() {
+  const zone  = document.getElementById('dropZone');
+  const input = document.getElementById('fileInput');
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('dragover');
+    addFiles(e.dataTransfer.files);
+  });
+  input.addEventListener('change', () => { if (input.files.length) addFiles(input.files); input.value=''; });
+}
+
+// ================================================================
+//  KEYBOARD SHORTCUT & INIT
+// ================================================================
+// ================================================================
+//  DATA TABLE
+// ================================================================
+const TABLE_FIELDS = [
+  { key:'fc',   label:'FC',   dec:0 },
+  { key:'fr',   label:'FR',   dec:1 },
+  { key:'ve',   label:'VE',   dec:2 },
+  { key:'vo2',  label:'VO₂',  dec:2 },
+  { key:'vco2', label:'VCO₂', dec:2 },
+  { key:'sao2', label:'SaO₂', dec:1 },
+];
+
+function isAberrant(data, idx, field) {
+  const r = data[idx];
+  if (!r || r[field] === null) return false;
+  const vals = [];
+  for (let j = Math.max(0, idx-5); j <= Math.min(data.length-1, idx+5); j++) {
+    if (j !== idx && !data[j].deleted && data[j][field] !== null) vals.push(data[j][field]);
+  }
+  if (vals.length < 4) return false;
+  const sorted = [...vals].sort((a,b) => a-b);
+  const median = sorted[Math.floor(sorted.length/2)];
+  if (Math.abs(median) < 0.001) return false;
+  return Math.abs(r[field] - median) / Math.abs(median) > 0.55;
+}
+
+function buildDataTable() {
+  const af = getActiveFile();
+  const section = document.getElementById('dataTableSection');
+  if (!af) { section.classList.add('hidden-section'); return; }
+  section.classList.remove('hidden-section');
+
+  document.getElementById('dataTableFileLabel2').textContent = af.name;
+  const delCount = af.data.filter(r => r.deleted).length;
+  document.getElementById('tableRowCount').textContent =
+    '— ' + af.data.length + ' cycles' + (delCount ? ' (' + delCount + ' supprimés)' : '');
+
+  const wrap = document.getElementById('dataTableWrap');
+  if (wrap.style.display === 'none') return; // lazy: only rebuild when visible
+
+  let html = '<thead><tr>' +
+    '<th style="text-align:left">#</th>' +
+    '<th style="text-align:left">Temps</th>' +
+    '<th style="text-align:left">Palier</th>' +
+    '<th style="text-align:left">Ch. (W)</th>';
+  TABLE_FIELDS.forEach(f => { html += '<th>' + f.label + '</th>'; });
+  html += '<th>EqO₂</th><th>EqCO₂</th><th></th></tr></thead><tbody>';
+
+  af.data.forEach((r, i) => {
+    const cls = r.deleted ? ' class="row-deleted"' : '';
+    html += '<tr' + cls + '>';
+    html += '<td class="td-num">' + (i+1) + '</td>';
+    html += '<td>' + r.time + '</td>';
+    html += '<td>' + r.palier + '</td>';
+    html += '<td>' + (r.charge||0) + '</td>';
+
+    TABLE_FIELDS.forEach(f => {
+      const v   = r[f.key];
+      const ab  = !r.deleted && isAberrant(af.data, i, f.key);
+      const cls2 = ab ? ' class="td-aberrant"' : '';
+      html += '<td' + cls2 + '>' + (v !== null ? Number(v).toFixed(f.dec) : '—') + '</td>';
+    });
+
+    const eq2  = (r.vo2  && r.vo2  > 0) ? (r.ve / r.vo2 ).toFixed(1) : '—';
+    const eqc  = (r.vco2 && r.vco2 > 0) ? (r.ve / r.vco2).toFixed(1) : '—';
+    html += '<td>' + eq2 + '</td><td>' + eqc + '</td>';
+
+    if (r.deleted) {
+      html += '<td><button class="restore-row-btn" data-fid="' + af.id + '" data-idx="' + i +
+              '" onclick="restoreRow(this.dataset.fid,+this.dataset.idx)">↺</button></td>';
+    } else {
+      html += '<td><button class="delete-row-btn" data-fid="' + af.id + '" data-idx="' + i +
+              '" onclick="deleteRow(this.dataset.fid,+this.dataset.idx)">🗑</button></td>';
+    }
+    html += '</tr>';
+  });
+
+  html += '</tbody>';
+  document.getElementById('dataTable').innerHTML = html;
+}
+
+function deleteRow(fileId, idx) {
+  const f = loadedFiles.find(f => f.id === fileId);
+  if (!f) return;
+  f.data[idx].deleted = true;
+  rebuildAllDatasets();
+  buildDataTable();
+}
+
+function restoreRow(fileId, idx) {
+  const f = loadedFiles.find(f => f.id === fileId);
+  if (!f) return;
+  f.data[idx].deleted = false;
+  rebuildAllDatasets();
+  buildDataTable();
+}
+
+// Supprime automatiquement les pct% de cycles les plus aberrants
+// Score = déviation relative maximale par rapport à la médiane locale (±5 voisins)
+// sur les 5 champs mesurés : fc, fr, ve, vo2, vco2
+function autoDeleteAberrant(pct) {
+  const af = getActiveFile(); if (!af) return;
+  const data   = af.data;
+  const FIELDS = ['fc', 'fr', 've', 'vo2', 'vco2'];
+  const WIN    = 5; // fenêtre de voisinage
+
+  // Calculer un score d'aberrance pour chaque point non supprimé
+  const scores = [];
+  data.forEach((r, i) => {
+    if (r.deleted) return;
+    let worstDev = 0;
+
+    FIELDS.forEach(field => {
+      const v = r[field];
+      if (v === null || v === undefined) return;
+
+      // Collecter les voisins non supprimés dans la fenêtre
+      const neighbors = [];
+      for (let j = Math.max(0, i - WIN); j <= Math.min(data.length - 1, i + WIN); j++) {
+        if (j === i || data[j].deleted || data[j][field] === null) continue;
+        neighbors.push(data[j][field]);
+      }
+      if (neighbors.length < 3) return; // pas assez de contexte
+
+      const sorted = [...neighbors].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      if (Math.abs(median) < 0.001) return;
+
+      const dev = Math.abs(v - median) / Math.abs(median);
+      if (dev > worstDev) worstDev = dev;
+    });
+
+    if (worstDev > 0) scores.push({ idx: i, score: worstDev });
+  });
+
+  if (!scores.length) return;
+  scores.sort((a, b) => b.score - a.score);
+
+  // Nombre à supprimer = pct% de l'ensemble des cycles actifs
+  const totalActive = data.filter(r => !r.deleted).length;
+  const nDel = Math.max(1, Math.round(totalActive * pct / 100));
+  const toDelete = Math.min(nDel, scores.length);
+
+  for (let k = 0; k < toDelete; k++) data[scores[k].idx].deleted = true;
+
+  rebuildAllDatasets();
+  buildDataTable();
+  updateStats();
+}
+
+function restoreAll() {
+  const af = getActiveFile(); if (!af) return;
+  af.data.forEach(r => { r.deleted = false; });
+  rebuildAllDatasets();
+  buildDataTable();
+}
+
+function toggleDataTable() {
+  const wrap = document.getElementById('dataTableWrap');
+  const btn  = document.getElementById('tableToggleBtn');
+  const open = wrap.style.display === 'none';
+  wrap.style.display = open ? 'block' : 'none';
+  btn.classList.toggle('open', open);
+  if (open) buildDataTable(); // render on first open
+}
+
+document.addEventListener('keydown', e => {
+  const patientOpen = document.getElementById('patientModal').classList.contains('open');
+  const theoOpen    = document.getElementById('vo2theoModal').classList.contains('open');
+  if (e.key === 'Escape') {
+    if (patientOpen) skipPatient();
+    else if (theoOpen) closeVO2Theo();
+    else deactivateMarker();
+  }
+  if (e.key === 'Enter' && patientOpen) confirmPatient();
+});
+
+// ================================================================
+//  PATIENT MODAL
+// ================================================================
+const pendingFileQueue = [];
+let _reopeningPatient  = null;
+
+// ================================================================
+//  CINÉTIQUE LACTIQUE — MODAL
+// ================================================================
+let _lactiqueEntries = [];
+
+function openLactiqueModal() {
+  const af = getActiveFile(); if (!af) return;
+  _lactiqueEntries = (af.lactatePoints || []).map(p => ({ ...p }));
+  renderLactiqueTable();
+  document.getElementById('lactiqueModal').classList.add('open');
+  setTimeout(() => document.getElementById('lacTimeInput').focus(), 50);
+}
+
+function closeLactiqueModal() {
+  document.getElementById('lactiqueModal').classList.remove('open');
+  _lactiqueEntries = [];
+}
+
+function parseLacTime(str) {
+  const p = str.trim().split(':');
+  if (p.length === 2) {
+    const m = parseInt(p[0]), s = parseInt(p[1]);
+    if (!isNaN(m) && !isNaN(s) && s < 60) return m * 60 + s;
+  }
+  const n = parseFloat(str.trim()); // secondes brutes
+  if (!isNaN(n) && n >= 0) return Math.round(n);
+  return null;
+}
+
+function formatLacTime(s) {
+  const m = Math.floor(s / 60), sec = s % 60;
+  return m + ':' + String(sec).padStart(2, '0');
+}
+
+function renderLactiqueTable() {
+  const tbody = document.getElementById('lactiqueTableBody');
+  if (!tbody) return;
+  const sorted = [..._lactiqueEntries].sort((a, b) => a.time_s - b.time_s);
+  if (sorted.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:#475569;font-style:italic;text-align:center;padding:10px">Aucune mesure — utilisez le formulaire ci-dessous</td></tr>';
+    return;
+  }
+  tbody.innerHTML = sorted.map((p, i) =>
+    '<tr><td>' + formatLacTime(p.time_s) + '</td>' +
+    '<td>' + p.value.toFixed(1) + ' mmol/L</td>' +
+    '<td><button class="lact-del-btn" onclick="removeLactiqueEntry(' + i + ')">&#10005;</button></td></tr>'
+  ).join('');
+}
+
+function addLactiqueEntry() {
+  const tRaw = document.getElementById('lacTimeInput').value;
+  const vRaw = document.getElementById('lacValInput').value;
+  const t    = parseLacTime(tRaw);
+  const v    = parseFloat(vRaw);
+  const tInp = document.getElementById('lacTimeInput');
+  const vInp = document.getElementById('lacValInput');
+  if (t === null) { tInp.style.borderColor = '#ef4444'; tInp.focus(); return; }
+  if (isNaN(v) || v < 0) { vInp.style.borderColor = '#ef4444'; vInp.focus(); return; }
+  tInp.style.borderColor = '';
+  vInp.style.borderColor = '';
+  _lactiqueEntries.push({ time_s: t, value: v });
+  tInp.value = ''; vInp.value = '';
+  renderLactiqueTable();
+  tInp.focus();
+}
+
+function removeLactiqueEntry(i) {
+  const sorted = [..._lactiqueEntries].sort((a, b) => a.time_s - b.time_s);
+  sorted.splice(i, 1);
+  _lactiqueEntries = sorted;
+  renderLactiqueTable();
+}
+
+function fillDebugLactate() {
+  const af = getActiveFile(); if (!af) return;
+  const d = af.data;
+  // Bornes : marqueurs si posés, sinon premier/dernier point actif
+  const first = d.find(r => !r.deleted && r.time_s !== null);
+  const last  = [...d].reverse().find(r => !r.deleted && r.time_s !== null);
+  if (!first || !last) return;
+  const startT = af.markers.warmup     !== null ? (d[af.markers.warmup]?.time_s     ?? first.time_s) : first.time_s;
+  const endT   = af.markers.effort_end !== null ? (d[af.markers.effort_end]?.time_s ?? last.time_s)  : last.time_s;
+  const T = endT - startT;
+  if (T <= 0) return;
+  // Courbe exponentielle : f(u)=A*(e^(k*u)-1), k=5.5 → f(0)=0, f(0.65)≈2, f(1)=14
+  const k = 5.5;
+  const A = 14 / (Math.exp(k) - 1);
+  const entries = [];
+  for (let t = startT; t < endT; t += 120) {
+    const u = (t - startT) / T;
+    entries.push({ time_s: t, value: +Math.max(0, A * (Math.exp(k * u) - 1)).toFixed(1) });
+  }
+  entries.push({ time_s: endT, value: 14 }); // point final exact
+  _lactiqueEntries = entries;
+  renderLactiqueTable();
+}
+
+function saveLactiquePoints() {
+  const af = getActiveFile(); if (!af) return;
+  af.lactatePoints = [..._lactiqueEntries].sort((a, b) => a.time_s - b.time_s);
+  closeLactiqueModal();
+  const card = document.getElementById('wrapCardLAC');
+  if (card) card.style.display = af.lactatePoints.length > 0 ? '' : 'none';
+  rebuildAllDatasets();
+  updateLactateSeuils();
+  const wrap = document.getElementById('extraChartsWrap');
+  if (wrap && af.lactatePoints.length > 0 && wrap.style.display === 'none') {
+    toggleExtraCharts();
+  }
+}
+
+function updateLactateSeuils() {
+  const af  = getActiveFile();
+  const row = document.getElementById('slBtnsRow');
+  if (!row) return;
+  const hasLac = af && af.lactatePoints && af.lactatePoints.length >= 2;
+  row.style.display = hasLac ? 'flex' : 'none';
+}
+
+function findNearestDataIdx(data, time_s) {
+  let best = 0, bestDiff = Infinity;
+  data.forEach((r, i) => {
+    if (r.deleted || r.time_s === null) return;
+    const d = Math.abs(r.time_s - time_s);
+    if (d < bestDiff) { bestDiff = d; best = i; }
+  });
+  return best;
+}
+
+// ── Détection automatique SL1/SL2 — méthode Dmax (Cheng et al. 1992) ──
+// SL2 : point de la courbe maximalement éloigné de la droite reliant le 1er et le dernier point
+// SL1 : idem sur le segment 1er point → SL2
+function autoDetectLactateThresholds() {
+  const af = getActiveFile(); if (!af) return;
+  const pts = af.lactatePoints;
+  if (!pts || pts.length < 3) {
+    alert('La méthode Dmax nécessite au moins 3 points de lactate.'); return;
+  }
+  const sorted = [...pts].sort((a, b) => a.time_s - b.time_s);
+  const n = sorted.length;
+
+  // Distance perpendiculaire d'un point (px, py) à la droite (x1,y1)→(x2,y2)
+  function perpDist(x1, y1, x2, y2, px, py) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len = Math.sqrt(dx*dx + dy*dy);
+    if (len === 0) return 0;
+    return Math.abs(dy * px - dx * py - (dy * x1 - dx * y1)) / len;
+  }
+
+  // SL2 : Dmax sur l'ensemble
+  let maxD2 = -1, sl2i = 1;
+  for (let i = 1; i < n - 1; i++) {
+    const d = perpDist(sorted[0].time_s, sorted[0].value,
+                       sorted[n-1].time_s, sorted[n-1].value,
+                       sorted[i].time_s, sorted[i].value);
+    if (d > maxD2) { maxD2 = d; sl2i = i; }
+  }
+
+  // SL1 : Dmax sur le segment 1er → SL2 (nécessite au moins 1 point intermédiaire)
+  let sl1i = null;
+  if (sl2i >= 2) {
+    let maxD1 = -1;
+    for (let i = 1; i < sl2i; i++) {
+      const d = perpDist(sorted[0].time_s, sorted[0].value,
+                         sorted[sl2i].time_s, sorted[sl2i].value,
+                         sorted[i].time_s, sorted[i].value);
+      if (d > maxD1) { maxD1 = d; sl1i = i; }
+    }
+  }
+
+  af.markers.sl2 = findNearestDataIdx(af.data, sorted[sl2i].time_s);
+  af.markers.sl1 = sl1i !== null
+    ? findNearestDataIdx(af.data, sorted[sl1i].time_s)
+    : null;
+
+  Object.values(charts).forEach(c => c.update('none'));
+  updateSummary();
+}
+
+// ================================================================
+//  VEMS THÉORIQUE — Quanjer 1993 (ERS/ECSC)
+// ================================================================
+function calcVEMSTheo(age, sexe, taille_cm) {
+  const A = parseFloat(age);
+  const H = parseFloat(taille_cm) / 100; // cm → m
+  if (isNaN(A) || isNaN(H) || A <= 0 || H <= 0 || !sexe) return null;
+  // Quanjer PH et al. Eur Respir J 1993;6(Suppl 16):5-40
+  const pred = sexe === 'M'
+    ? 4.30 * H - 0.029 * A - 2.49   // hommes
+    : 3.95 * H - 0.025 * A - 2.60;  // femmes
+  const rsd  = sexe === 'M' ? 0.51 : 0.42;
+  return {
+    pred: Math.max(0, +pred.toFixed(2)),
+    lln:  Math.max(0, +(pred - 1.645 * rsd).toFixed(2)), // limite inférieure de la normale
+  };
+}
+
+function updateVEMSHint() {
+  const hint = document.getElementById('vemsHint');
+  if (!hint) return;
+  const age     = document.getElementById('pt-age').value;
+  const sexe    = document.getElementById('pt-sexe').value;
+  const taille  = document.getElementById('pt-taille').value;
+  const vemsRaw = document.getElementById('pt-vems').value;
+  const vemsVal = parseFloat(vemsRaw);
+  const theo    = calcVEMSTheo(age, sexe, taille);
+
+  if (!theo) { hint.textContent = ''; hint.className = 'vems-hint'; return; }
+
+  const hasMeasured = !isNaN(vemsVal) && vemsVal > 0;
+  if (hasMeasured) {
+    const pct = Math.round(vemsVal / theo.pred * 100);
+    hint.textContent = pct + '% du prédit — Théorique : ' + theo.pred + ' L (LIN ' + theo.lln + ' L) — Quanjer 1993';
+    hint.className = 'vems-hint has-val';
+  } else {
+    hint.textContent = 'Théorique : ' + theo.pred + ' L · LIN ' + theo.lln + ' L — Quanjer 1993';
+    hint.className = 'vems-hint';
+  }
+}
+
+function reopenPatientModal() {
+  const af = getActiveFile(); if (!af) return;
+  const p = af.patient || {};
+  document.getElementById('modalFileSub').textContent  = 'Fichier : ' + af.name;
+  document.getElementById('pt-nom').value     = p.nom     || '';
+  document.getElementById('pt-prenom').value  = p.prenom  || '';
+  document.getElementById('pt-age').value     = p.age     || '';
+  document.getElementById('pt-sexe').value    = p.sexe    || '';
+  document.getElementById('pt-taille').value  = p.taille  || '';
+  document.getElementById('pt-poids').value   = p.poids   || '';
+  document.getElementById('pt-date').value    = p.date    || '';
+  document.getElementById('pt-profil').value  = p.profil  || '';
+  document.getElementById('pt-lactate').value = p.lactate || '';
+  document.getElementById('pt-vems').value    = p.vems    || '';
+  updateVEMSHint();
+  // Confirmer mettra à jour le fichier actif directement
+  _reopeningPatient = af;
+  document.getElementById('patientModal').classList.add('open');
+  setTimeout(() => document.getElementById('pt-nom').focus(), 50);
+}
+
+function showPatientModal(fileObj) {
+  pendingFileQueue.push(fileObj);
+  if (pendingFileQueue.length === 1) processNextPatient();
+}
+
+function processNextPatient() {
+  if (!pendingFileQueue.length) return;
+  const fileObj = pendingFileQueue[0];
+  document.getElementById('modalFileSub').textContent = 'Fichier : ' + fileObj.name;
+  document.getElementById('pt-nom').value     = '';
+  document.getElementById('pt-prenom').value  = '';
+  document.getElementById('pt-age').value     = '';
+  document.getElementById('pt-sexe').value    = '';
+  document.getElementById('pt-taille').value  = '';
+  document.getElementById('pt-poids').value   = '';
+  document.getElementById('pt-date').value    = '';
+  document.getElementById('pt-profil').value  = '';
+  document.getElementById('pt-lactate').value = '';
+  document.getElementById('pt-vems').value    = '';
+  updateVEMSHint();
+  document.getElementById('patientModal').classList.add('open');
+  setTimeout(() => document.getElementById('pt-nom').focus(), 50);
+}
+
+function confirmPatient() {
+  // Cas réouverture (bouton "Infos patient") ou cas file queue (chargement)
+  const fileObj = _reopeningPatient || pendingFileQueue.shift();
+  if (!fileObj) return;
+  _reopeningPatient = null;
+  fileObj.patient = {
+    nom:     document.getElementById('pt-nom').value.trim(),
+    prenom:  document.getElementById('pt-prenom').value.trim(),
+    age:     document.getElementById('pt-age').value,
+    sexe:    document.getElementById('pt-sexe').value,
+    taille:  document.getElementById('pt-taille').value,
+    poids:   document.getElementById('pt-poids').value,
+    date:    document.getElementById('pt-date').value,
+    profil:  document.getElementById('pt-profil').value,
+    lactate: document.getElementById('pt-lactate').value,
+    vems:    document.getElementById('pt-vems').value,
+  };
+  document.getElementById('patientModal').classList.remove('open');
+  rebuildAllDatasets();
+  updateStats();
+  updatePatientProfileUI();
+  rebuildFileList();
+  processNextPatient();
+}
+
+function skipPatient() {
+  _reopeningPatient = null;
+  if (pendingFileQueue.length) pendingFileQueue.shift();
+  document.getElementById('patientModal').classList.remove('open');
+  processNextPatient();
+}
+
+// ================================================================
+//  PDF EXPORT — MODAL
+// ================================================================
+const _epdfState = {
+  fc:    { checked: true, size: 'grand'  },
+  vo2:   { checked: true, size: 'petit'  },
+  vco2:  { checked: true, size: 'petit'  },
+  ve:    { checked: true, size: 'petit'  },
+  fr:    { checked: true, size: 'petit'  },
+  combo: { checked: true, size: 'grand'  },
+  eq:    { checked: true, size: 'grand'  },
+  pet:   { checked: true, size: 'grand'  },
+};
+const _EPDF_DEFAULT_ORDER = ['combo','fc','vo2','vco2','ve','fr','eq','pet'];
+let _epdfOrder   = [..._EPDF_DEFAULT_ORDER];
+let _epdfDragKey = null;
+
+const _EPDF_COLORS = {
+  fc:'#ef4444', vo2:'#3b82f6', vco2:'#06b6d4',
+  ve:'#10b981', fr:'#f59e0b',  combo:'#8b5cf6',
+  eq:'#64748b', pet:'#f97316',
+};
+const _EPDF_LBLS = {
+  fc:'FC', vo2:'VO₂', vco2:'VCO₂', ve:'VE', fr:'FR',
+  combo:'Combo VO₂/VCO₂/VE', eq:'Éq. Ventilatoires', pet:'PETO₂ / PETCO₂',
+};
+
+function openExportModal() {
+  const af = getActiveFile();
+  if (!af) { alert('Aucun fichier actif.'); return; }
+  if (!window.jspdf) { alert('jsPDF non disponible — vérifiez votre connexion internet.'); return; }
+  // Aligner par défaut le thème PDF sur le thème actuel de l'app
+  epdfSetPdfTheme(document.body.classList.contains('light') ? 'light' : 'dark');
+  Object.keys(_epdfState).forEach(key => {
+    const chk = document.getElementById('epdfChk-' + key);
+    if (chk) chk.checked = _epdfState[key].checked;
+    _epdfSyncBtns(key);
+  });
+  renderEpdfPreview();
+  document.getElementById('exportModal').classList.add('open');
+}
+
+function closeExportModal() {
+  document.getElementById('exportModal').classList.remove('open');
+}
+
+function epdfToggleChart(key) {
+  _epdfState[key].checked = document.getElementById('epdfChk-' + key).checked;
+  _epdfSyncBtns(key);
+  renderEpdfPreview();
+}
+
+function epdfSetSize(key, size) {
+  _epdfState[key].size = size;
+  _epdfSyncBtns(key);
+  renderEpdfPreview();
+}
+
+function _epdfSyncBtns(key) {
+  const disabled = !_epdfState[key].checked;
+  const size     = _epdfState[key].size;
+  const btnG = document.getElementById('epdfSz-' + key + '-grand');
+  const btnP = document.getElementById('epdfSz-' + key + '-petit');
+  if (!btnG || !btnP) return;
+  btnG.classList.toggle('active', size === 'grand');
+  btnP.classList.toggle('active', size === 'petit');
+  btnG.disabled = disabled;
+  btnP.disabled = disabled;
+}
+
+// ---- Thème PDF ----
+let _epdfPdfTheme = 'dark';
+
+function epdfSetPdfTheme(t) {
+  _epdfPdfTheme = t;
+  document.getElementById('epdfThemeDark').classList.toggle('active',  t === 'dark');
+  document.getElementById('epdfThemeLight').classList.toggle('active', t === 'light');
+}
+
+function _getPdfTheme() {
+  const d = _epdfPdfTheme !== 'light';
+  return {
+    hdrBg:         d ? [30,37,53]    : [240,244,248],
+    hdrTitle:      d ? [226,232,240] : [15,23,42],
+    hdrSub:        d ? [148,163,184] : [107,114,128],
+    statsColor:    d ? [94,117,141]  : [107,114,128],
+    dividerColor:  d ? [45,55,72]    : [203,213,225],
+    chartLblColor: d ? [148,163,184] : [107,114,128],
+    sectionColor:  d ? [148,163,184] : [107,114,128],
+    tblHdrBg:      d ? [30,45,61]    : [226,232,240],
+    tblHdrText:    d ? [148,163,184] : [107,114,128],
+    tblRowA:       d ? [26,34,51]    : [255,255,255],
+    tblRowB:       d ? [30,37,53]    : [248,250,252],
+    tblText:       d ? [148,163,184] : [55,65,81],
+    critOk:        d ? [16,185,129]  : [5,150,105],
+    critFail:      d ? [239,68,68]   : [220,38,38],
+    critNeutral:   d ? [148,163,184] : [156,163,175],
+  };
+}
+
+// ---- Preview / drag-and-drop ----
+function renderEpdfPreview() {
+  const container = document.getElementById('epdfPreview');
+  if (!container) return;
+  const visCharts = _epdfOrder.filter(k => _epdfState[k]?.checked);
+  const tblS = document.getElementById('epdfTblSeuils')?.checked;
+  const tblM = document.getElementById('epdfTblMax')?.checked;
+
+  if (!visCharts.length && !tblS && !tblM) {
+    container.innerHTML = '<div class="epdf-prev-empty">Aucun élément sélectionné</div>';
+    return;
+  }
+
+  let html = '';
+
+  // Charts (draggable)
+  visCharts.forEach(key => {
+    const col  = _EPDF_COLORS[key] || '#64748b';
+    const lbl  = _EPDF_LBLS[key] || key;
+    const size = _epdfState[key].size;
+    html += `<div class="epdf-prev-item" draggable="true" data-key="${key}"
+        ondragstart="epdfDragStart(event,'${key}')"
+        ondragover="epdfDragOver(event,'${key}')"
+        ondrop="epdfDrop(event,'${key}')"
+        ondragleave="epdfDragLeave(event)">
+      <span class="epdf-prev-handle">&#8645;</span>
+      <div class="epdf-prev-bar-wrap">
+        <div class="epdf-prev-bar ${size}" style="background:${col}">${lbl}</div>
+      </div>
+      <span class="epdf-prev-size-lbl">${size === 'grand' ? 'G' : 'P'}</span>
+    </div>`;
+  });
+
+  // Tables (non-draggable, always at bottom)
+  if (tblS || tblM) {
+    if (visCharts.length) html += '<div class="epdf-prev-separator">Tableaux</div>';
+    if (tblS) html += `<div class="epdf-prev-table-row">
+      <span class="epdf-prev-handle" style="visibility:hidden">&#8645;</span>
+      <div class="epdf-prev-bar-wrap">
+        <div class="epdf-prev-bar grand" style="background:#0ea5e9">Seuils ventilatoires</div>
+      </div>
+      <span class="epdf-prev-size-lbl">G</span></div>`;
+    if (tblM) html += `<div class="epdf-prev-table-row">
+      <span class="epdf-prev-handle" style="visibility:hidden">&#8645;</span>
+      <div class="epdf-prev-bar-wrap">
+        <div class="epdf-prev-bar grand" style="background:#22d3ee">Critères de maximalité</div>
+      </div>
+      <span class="epdf-prev-size-lbl">G</span></div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+function epdfDragStart(e, key) {
+  _epdfDragKey = key;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => {
+    const el = document.querySelector(`.epdf-prev-item[data-key="${key}"]`);
+    if (el) el.classList.add('epdf-dragging');
+  }, 0);
+}
+
+function epdfDragOver(e, key) {
+  e.preventDefault();
+  if (_epdfDragKey === key || !_epdfState[key]) return;
+  document.querySelectorAll('.epdf-prev-item').forEach(el => el.classList.remove('epdf-drag-over'));
+  const el = document.querySelector(`.epdf-prev-item[data-key="${key}"]`);
+  if (el) el.classList.add('epdf-drag-over');
+}
+
+function epdfDragLeave(e) {
+  e.currentTarget.classList.remove('epdf-drag-over');
+}
+
+function epdfDrop(e, key) {
+  e.preventDefault();
+  document.querySelectorAll('.epdf-prev-item').forEach(el =>
+    el.classList.remove('epdf-drag-over', 'epdf-dragging'));
+  if (!_epdfDragKey || _epdfDragKey === key || !_epdfState[key]) {
+    _epdfDragKey = null; return;
+  }
+  const fi = _epdfOrder.indexOf(_epdfDragKey);
+  const ti = _epdfOrder.indexOf(key);
+  if (fi >= 0 && ti >= 0) {
+    _epdfOrder.splice(fi, 1);
+    _epdfOrder.splice(ti, 0, _epdfDragKey);
+  }
+  _epdfDragKey = null;
+  renderEpdfPreview();
+}
+
+function generatePDFFromForm() {
+  const af = getActiveFile();
+  if (!af) return;
+  if (!window.jspdf) return;
+  closeExportModal();
+
+  const appLight = document.body.classList.contains('light');
+  const pdfLight = _epdfPdfTheme === 'light';
+
+  const run = () => {
+    _buildPDF(af);
+    // Restaurer le thème app si on l'a temporairement changé
+    if (appLight !== pdfLight) {
+      document.body.classList.toggle('light', appLight);
+      applyThemeToCharts(appLight);
+      const btn = document.getElementById('themeToggle');
+      if (btn) btn.innerHTML = appLight ? '&#9790; Sombre' : '&#9728; Clair';
+    }
+  };
+
+  if (appLight !== pdfLight) {
+    // Basculer temporairement pour que les captures de graphiques correspondent
+    document.body.classList.toggle('light', pdfLight);
+    applyThemeToCharts(pdfLight);
+    // Laisser deux frames pour que les canvas se repeignent
+    requestAnimationFrame(() => requestAnimationFrame(run));
+  } else {
+    run();
+  }
+}
+
+function _buildPDF(af) {
+  const th = _getPdfTheme();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, margin = 14, usableW = W - margin * 2;
+  const p = af.patient || {};
+  const patName = [p.prenom, p.nom].filter(Boolean).join(' ') || af.name;
+
+  // ---- Header band ----
+  doc.setFillColor(...th.hdrBg);
+  doc.rect(0, 0, W, 26, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...th.hdrTitle);
+  doc.text('VO2 - Analyse Epreuve d\'Effort', margin, 10);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(...th.hdrSub);
+  const hdrParts = [patName];
+  if (p.date)   hdrParts.push('Date : ' + p.date);
+  if (p.age)    hdrParts.push('Age : ' + p.age + ' ans');
+  if (p.sexe)   hdrParts.push('Sexe : ' + p.sexe);
+  if (p.taille) hdrParts.push('Taille : ' + p.taille + ' cm');
+  if (p.poids)  hdrParts.push('Poids : ' + p.poids + ' kg');
+  doc.text(hdrParts.join('   |   '), margin, 20);
+
+  let y = 30;
+
+  // ---- Stats line ----
+  const d      = af.data;
+  const active = d.filter(r => !r.deleted);
+  const maxFC  = Math.max(...active.map(r => r.fc     || 0));
+  const maxVO2 = Math.max(...active.map(r => r.vo2    || 0));
+  const maxW   = Math.max(...active.map(r => r.charge || 0));
+  const dur    = d[d.length - 1].time;
+  const poids  = parseFloat(p.poids);
+  const vo2Rel = (!isNaN(poids) && poids > 0) ? (maxVO2 * 1000 / poids).toFixed(1) + ' mL/min/kg' : null;
+  doc.setFontSize(8);
+  doc.setTextColor(...th.statsColor);
+  doc.text([
+    'FC max : ' + maxFC.toFixed(0) + ' bpm',
+    'VO2 max : ' + maxVO2.toFixed(2) + ' L/min' + (vo2Rel ? ' (' + vo2Rel + ')' : ''),
+    'Charge max : ' + maxW.toFixed(0) + ' W',
+    'Duree : ' + dur,
+  ].join('   |   '), margin, y);
+  y += 4;
+  doc.setDrawColor(...th.dividerColor);
+  doc.line(margin, y, W - margin, y);
+  y += 4;
+
+  // ---- Charts (ordre défini dans l'aperçu) ----
+  const sel = _epdfOrder.filter(k => _epdfState[k]?.checked && charts[k]);
+  const hG = 42, hP = 36, gap = 4, hw = (usableW - 5) / 2;
+
+  let ci = 0;
+  while (ci < sel.length) {
+    const key  = sel[ci];
+    const size = _epdfState[key].size;
+    if (size === 'grand') {
+      if (y + hG + gap > 285) { doc.addPage(); y = 14; }
+      addChartToPDF(doc, key, margin, y, usableW, hG, th);
+      y += hG + gap;
+      ci++;
+    } else {
+      const nxt      = sel[ci + 1];
+      const nxtPetit = nxt && _epdfState[nxt].size === 'petit';
+      if (y + hP + gap > 285) { doc.addPage(); y = 14; }
+      addChartToPDF(doc, key, margin, y, nxtPetit ? hw : usableW, hP, th);
+      if (nxtPetit) {
+        addChartToPDF(doc, nxt, margin + hw + 5, y, hw, hP, th);
+        ci += 2;
+      } else { ci++; }
+      y += hP + gap;
+    }
+  }
+
+  // ---- Seuils ventilatoires ----
+  if (document.getElementById('epdfTblSeuils').checked) {
+    const anyMk = Object.values(af.markers).some(v => v !== null);
+    if (anyMk) {
+      if (y + 70 > 285) { doc.addPage(); y = 14; }
+      doc.setDrawColor(...th.dividerColor);
+      doc.line(margin, y, W - margin, y);
+      y += 5;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(...th.sectionColor);
+      doc.text('Seuils ventilatoires', margin, y);
+      y += 4;
+      y = drawThresholdTable(doc, af, margin, y, usableW, th);
+      y += 6;
+    }
+  }
+
+  // ---- Critères de maximalité ----
+  if (document.getElementById('epdfTblMax').checked) {
+    if (y + 60 > 285) { doc.addPage(); y = 14; }
+    doc.setDrawColor(...th.dividerColor);
+    doc.line(margin, y, W - margin, y);
+    y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...th.sectionColor);
+    doc.text('Criteres de maximalite', margin, y);
+    y += 4;
+    drawMaxCriteriaTablePDF(doc, af, margin, y, usableW, th);
+  }
+
+  // ---- Save ----
+  const fname = [
+    p.prenom ? p.prenom.replace(/\s+/g, '_') : '',
+    p.nom    ? p.nom.toUpperCase().replace(/\s+/g, '_') : '',
+  ].filter(Boolean).join('_') || af.name.replace(/\s+/g, '_');
+  doc.save(fname + '_VO2.pdf');
+}
+
+function drawMaxCriteriaTablePDF(doc, af, x, y, w, theme) {
+  const allActive = af.data.filter(r => !r.deleted);
+  const wTimeS = af.markers.warmup     !== null ? (af.data[af.markers.warmup]?.time_s     ?? null) : null;
+  const eTimeS = af.markers.effort_end !== null ? (af.data[af.markers.effort_end]?.time_s ?? null) : null;
+  const zone = allActive.filter(r => {
+    if (wTimeS !== null && r.time_s < wTimeS) return false;
+    if (eTimeS !== null && r.time_s > eTimeS) return false;
+    return true;
+  });
+  const pts  = zone.length >= 10 ? zone : allActive;
+  const p    = af.patient || {};
+  const age  = parseInt(p.age);
+  const poids  = parseFloat(p.poids);
+  const taille = parseFloat(p.taille);
+  const sexe   = p.sexe;
+  const mean   = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+
+  const cr = [];
+
+  // 1 & 2 — QR
+  const qrV  = pts.filter(r => r.vco2 > 0 && r.vo2 > 0).map(r => r.vco2 / r.vo2);
+  const maxQR = qrV.length ? Math.max(...qrV) : null;
+  cr.push({ nom:'QR max >= 1.10',             seuil:'>= 1.10', val: maxQR !== null ? maxQR.toFixed(2) : '—', met: maxQR !== null ? maxQR >= 1.10 : null });
+  cr.push({ nom:'QR max >= 1.15 (strict)',     seuil:'>= 1.15', val: maxQR !== null ? maxQR.toFixed(2) : '—', met: maxQR !== null ? maxQR >= 1.15 : null });
+
+  // 3 — FC
+  const mFC = Math.max(...allActive.map(r => r.fc || 0));
+  if (!isNaN(age) && age > 0) {
+    const fcT = 220 - age, fcP = (mFC / fcT) * 100;
+    cr.push({ nom:'FC max >= 90% FCtheo (220-age)', seuil:'>= '+Math.round(fcT*0.9)+' bpm', val:Math.round(mFC)+' bpm ('+fcP.toFixed(0)+'%)', met:fcP>=90 });
+  } else {
+    cr.push({ nom:'FC max >= 90% FCtheo (220-age)', seuil:'>= 90%', val:'—', met:null });
+  }
+
+  // 4 — Plateau VO2
+  const bpV2 = {};
+  pts.forEach(r => { if (r.vo2 !== null) (bpV2[r.palier] = bpV2[r.palier] || []).push(r.vo2); });
+  const vpV2 = Object.keys(bpV2).filter(k => bpV2[k].length >= 3);
+  if (vpV2.length >= 2) {
+    const dv = Math.abs(mean(bpV2[vpV2[vpV2.length-1]]) - mean(bpV2[vpV2[vpV2.length-2]]));
+    cr.push({ nom:'Plateau VO2 (D<0.15 L/min)', seuil:'< 0.15 L/min', val:'D '+Math.round(dv*1000)+' mL/min', met:dv<0.15 });
+  } else {
+    cr.push({ nom:'Plateau VO2 (D<0.15 L/min)', seuil:'< 0.15 L/min', val:'—', met:null });
+  }
+
+  // 5 — Plateau FC
+  const bpFC = {};
+  pts.forEach(r => { if (r.fc !== null) (bpFC[r.palier] = bpFC[r.palier] || []).push(r.fc); });
+  const vpFC = Object.keys(bpFC).filter(k => bpFC[k].length >= 2);
+  if (vpFC.length >= 2) {
+    const df = Math.abs(mean(bpFC[vpFC[vpFC.length-1]]) - mean(bpFC[vpFC[vpFC.length-2]]));
+    cr.push({ nom:'Plateau FC (D<4 bpm)', seuil:'< 4 bpm', val:'D '+df.toFixed(1)+' bpm', met:df<4 });
+  } else {
+    cr.push({ nom:'Plateau FC (D<4 bpm)', seuil:'< 4 bpm', val:'—', met:null });
+  }
+
+  // 6 — SV2
+  cr.push({ nom:'SV2 identifiable', seuil:'Present', val: af.markers.sv2 !== null ? 'Oui' : 'Non', met: af.markers.sv2 !== null });
+
+  // 7 — VO2max vs theo
+  if (!isNaN(age) && !isNaN(poids) && !isNaN(taille) && (sexe==='M'||sexe==='F')) {
+    const pred = computeVO2Predictions(age, sexe, poids, taille);
+    const meas = Math.max(...allActive.map(r => r.vo2 || 0));
+    const pct  = (meas / (pred.vo2max / 1000)) * 100;
+    cr.push({ nom:'VO2max >= 80% theo (Wasserman)', seuil:'>= '+(pred.lower/1000).toFixed(2)+' L/min', val:meas.toFixed(2)+' L/min ('+pct.toFixed(0)+'%)', met:pct>=80 });
+  } else {
+    cr.push({ nom:'VO2max >= 80% theo (Wasserman)', seuil:'>= 80%', val:'—', met:null });
+  }
+
+  // 8 — PETCO2
+  const pcPts = pts.filter(r => r.petco2 !== null);
+  if (pcPts.length >= 10) {
+    const cut = Math.max(2, Math.floor(pcPts.length * 0.15));
+    const em  = mean(pcPts.slice(0, cut).map(r => r.petco2));
+    const lm  = mean(pcPts.slice(-cut).map(r => r.petco2));
+    cr.push({ nom:'PETCO2 decreissant en fin effort', seuil:'Decroissance', val:em.toFixed(1)+' -> '+lm.toFixed(1)+' mmHg', met:lm<em });
+  } else {
+    cr.push({ nom:'PETCO2 decreissant en fin effort', seuil:'Decroissance', val:'—', met:null });
+  }
+
+  // ---- Render ----
+  const th  = theme || _getPdfTheme();
+  const rh = 5.5, hh = 7;
+  const cw0 = w * 0.40, cw1 = w * 0.25, cw2 = w * 0.24, cw3 = w * 0.11;
+
+  // Header
+  doc.setFillColor(...th.tblHdrBg);
+  doc.rect(x, y, w, hh, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...th.tblHdrText);
+  doc.text('Critere',        x + 2,                    y + 4.5);
+  doc.text('Seuil',          x + cw0 + 2,              y + 4.5);
+  doc.text('Valeur mesuree', x + cw0 + cw1 + 2,        y + 4.5);
+  doc.text('Statut',         x + cw0 + cw1 + cw2 + 2,  y + 4.5);
+  y += hh;
+
+  cr.forEach((c, ri) => {
+    const bg = ri % 2 === 0 ? th.tblRowA : th.tblRowB;
+    doc.setFillColor(...bg);
+    doc.rect(x, y, w, rh, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.8);
+    doc.setTextColor(...th.tblText);
+    doc.text(c.nom,   x + 2,             y + 4, { maxWidth: cw0 - 3 });
+    doc.text(c.seuil, x + cw0 + 2,       y + 4, { maxWidth: cw1 - 3 });
+    doc.text(c.val,   x + cw0 + cw1 + 2, y + 4, { maxWidth: cw2 - 3 });
+    const status = c.met === null ? '—' : c.met ? 'OUI' : 'NON';
+    if      (c.met === true)  doc.setTextColor(...th.critOk);
+    else if (c.met === false) doc.setTextColor(...th.critFail);
+    else                      doc.setTextColor(...th.critNeutral);
+    doc.text(status, x + cw0 + cw1 + cw2 + 2, y + 4);
+    y += rh;
+  });
+
+  // Border
+  doc.setDrawColor(...th.dividerColor);
+  doc.rect(x, y - cr.length * rh - hh, w, cr.length * rh + hh);
+  return y;
+}
+
+// ================================================================
+//  PDF EXPORT — legacy (kept for compatibility)
+// ================================================================
+function exportPDF() {
+  const af = getActiveFile();
+  if (!af) { alert('Aucun fichier actif.'); return; }
+  if (!window.jspdf) { alert('jsPDF non disponible — vérifiez votre connexion internet.'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, margin = 14, usableW = W - margin * 2;
+  const p = af.patient || {};
+  const patName = [p.prenom, p.nom].filter(Boolean).join(' ') || af.name;
+
+  // ---- Header band ----
+  doc.setFillColor(30, 37, 53);
+  doc.rect(0, 0, W, 26, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(226, 232, 240);
+  doc.text('VO2 - Analyse Epreuve d\'Effort', margin, 10);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(148, 163, 184);
+  const hdrParts = [patName];
+  if (p.date)   hdrParts.push('Date : ' + p.date);
+  if (p.age)    hdrParts.push('Age : ' + p.age + ' ans');
+  if (p.sexe)   hdrParts.push('Sexe : ' + p.sexe);
+  if (p.taille) hdrParts.push('Taille : ' + p.taille + ' cm');
+  if (p.poids)  hdrParts.push('Poids : ' + p.poids + ' kg');
+  doc.text(hdrParts.join('   |   '), margin, 20);
+
+  let y = 30;
+
+  // ---- Stats line ----
+  const d      = af.data;
+  const active = d.filter(r => !r.deleted);
+  const maxFC  = Math.max(...active.map(r => r.fc     || 0));
+  const maxVO2 = Math.max(...active.map(r => r.vo2    || 0));
+  const maxW   = Math.max(...active.map(r => r.charge || 0));
+  const dur    = d[d.length - 1].time;
+  const poids  = parseFloat(p.poids);
+  const vo2Rel = (!isNaN(poids) && poids > 0) ? (maxVO2 * 1000 / poids).toFixed(1) + ' mL/min/kg' : null;
+  doc.setFontSize(8);
+  doc.setTextColor(94, 117, 141);
+  const statsLine = [
+    'FC max : ' + maxFC.toFixed(0) + ' bpm',
+    'VO2 max : ' + maxVO2.toFixed(2) + ' L/min' + (vo2Rel ? ' (' + vo2Rel + ')' : ''),
+    'Charge max : ' + maxW.toFixed(0) + ' W',
+    'Duree : ' + dur,
+  ].join('   |   ');
+  doc.text(statsLine, margin, y);
+  y += 4;
+  doc.setDrawColor(45, 55, 72);
+  doc.line(margin, y, W - margin, y);
+  y += 4;
+
+  // ---- Charts ----
+  addChartToPDF(doc, 'fc', margin, y, usableW, 42);
+  y += 44;
+  const hw = (usableW - 5) / 2;
+  addChartToPDF(doc, 'vo2',  margin,      y, hw, 36);
+  addChartToPDF(doc, 'vco2', margin+hw+5, y, hw, 36);
+  y += 38;
+  addChartToPDF(doc, 've', margin,      y, hw, 36);
+  addChartToPDF(doc, 'fr', margin+hw+5, y, hw, 36);
+  y += 38;
+  addChartToPDF(doc, 'eq', margin, y, usableW, 42);
+  y += 44;
+
+  // ---- Threshold table ----
+  const anyMk = Object.values(af.markers).some(v => v !== null);
+  if (anyMk) {
+    if (y + 80 > 285) { doc.addPage(); y = 14; }
+    doc.setDrawColor(45, 55, 72);
+    doc.line(margin, y, W - margin, y);
+    y += 5;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Seuils ventilatoires', margin, y);
+    y += 4;
+    drawThresholdTable(doc, af, margin, y, usableW);
+  }
+
+  // ---- Save ----
+  const fname = [
+    p.prenom ? p.prenom.replace(/\s+/g, '_') : '',
+    p.nom    ? p.nom.toUpperCase().replace(/\s+/g, '_') : '',
+  ].filter(Boolean).join('_') || af.name.replace(/\s+/g, '_');
+  doc.save(fname + '_VO2.pdf');
+}
+
+// Convertit un canvas en JPEG compressé.
+// - Plafonne la résolution à PDF_MAX_PX (≈ 200 DPI sur A4 pleine largeur)
+//   pour éviter d'embarquer un canvas 3× Retina inutilement large.
+// - Qualité 0.86 : imperceptible à l'œil, ~8× plus léger que PNG.
+const _PDF_MAX_PX  = 1600;  // px max côté large
+const _PDF_QUALITY = 0.86;
+
+function _chartToJpeg(canvas) {
+  let src = canvas;
+  if (canvas.width > _PDF_MAX_PX) {
+    const scale = _PDF_MAX_PX / canvas.width;
+    const tmp   = document.createElement('canvas');
+    tmp.width   = _PDF_MAX_PX;
+    tmp.height  = Math.round(canvas.height * scale);
+    tmp.getContext('2d').drawImage(canvas, 0, 0, tmp.width, tmp.height);
+    src = tmp;
+  }
+  return src.toDataURL('image/jpeg', _PDF_QUALITY);
+}
+
+function addChartToPDF(doc, key, x, y, w, h, theme) {
+  const ch = charts[key]; if (!ch) return;
+  const th = theme || _getPdfTheme();
+  const lbls = {
+    fc:    'FC - Frequence Cardiaque (bpm)',
+    vo2:   'VO2 (L/min)',
+    vco2:  'VCO2 (L/min)',
+    ve:    'VE - Ventilation Minute (L/min)',
+    fr:    'FR - Frequence Respiratoire (c/min)',
+    combo: 'Combo  VO2 + VCO2 (L/min, axe gauche)  |  VE (L/min, axe droit)',
+    eq:    'Equivalents ventilatoires  EqO2 = VE/VO2   EqCO2 = VE/VCO2',
+    pet:   'Pressions teleexpiratoires  PETO2 (orange)  PETCO2 (violet)  (mmHg)',
+  };
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...th.chartLblColor);
+  doc.text(lbls[key] || key, x, y + 3.5);
+  const dataURL = _chartToJpeg(ch.canvas);
+  doc.addImage(dataURL, 'JPEG', x, y + 5, w, h - 5);
+}
+
+function drawThresholdTable(doc, af, x, y, w, theme) {
+  const th = theme || _getPdfTheme();
+  const mkeys  = ['sv1', 'sv2', 'vo2max'];
+  const mcols  = { sv1: [249,115,22], sv2: [239,68,68], vo2max: [168,85,247] };
+  const mlbls  = { sv1: 'SV1', sv2: 'SV2', vo2max: 'VO2max' };
+  const rowDefs = [
+    { lbl: 'Temps',        fn: (f,i) => f.data[i].time },
+    { lbl: 'Palier',       fn: (f,i) => f.data[i].palier },
+    { lbl: 'Charge (W)',   fn: (f,i) => String(f.data[i].charge || 0) },
+    { lbl: 'FC (bpm)',     fn: (f,i) => fv(f.data[i].fc,   0) },
+    { lbl: 'VO2 (L/min)',  fn: (f,i) => fv(f.data[i].vo2,  2) },
+    { lbl: 'VCO2 (L/min)', fn: (f,i) => fv(f.data[i].vco2, 2) },
+    { lbl: 'VE (L/min)',   fn: (f,i) => fv(f.data[i].ve,   1) },
+    { lbl: 'FR (c/min)',   fn: (f,i) => fv(f.data[i].fr,   1) },
+    { lbl: 'EqO2',         fn: (f,i) => { const r=f.data[i]; return r.vo2>0  ? fv(r.ve/r.vo2, 1)  : '--'; } },
+    { lbl: 'EqCO2',        fn: (f,i) => { const r=f.data[i]; return r.vco2>0 ? fv(r.ve/r.vco2, 1) : '--'; } },
+  ];
+  const active = mkeys.filter(k => af.markers[k] !== null);
+  const cw0 = w * 0.30;
+  const cwN = active.length > 0 ? (w - cw0) / active.length : 0;
+  const rh = 5.5, hh = 7;
+
+  // header row
+  doc.setFillColor(...th.tblHdrBg);
+  doc.rect(x, y, w, hh, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...th.tblHdrText);
+  doc.text('Parametre', x + 2, y + 4.5);
+  active.forEach((k, i) => {
+    const [r,g,b] = mcols[k];
+    doc.setTextColor(r, g, b);
+    doc.text(mlbls[k], x + cw0 + cwN * i + 2, y + 4.5);
+  });
+  y += hh;
+
+  // data rows
+  rowDefs.forEach((row, ri) => {
+    const bg = ri % 2 === 0 ? th.tblRowA : th.tblRowB;
+    doc.setFillColor(...bg);
+    doc.rect(x, y, w, rh, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...th.tblText);
+    doc.text(row.lbl, x + 2, y + 4);
+    active.forEach((k, i) => {
+      const [r,g,b] = mcols[k];
+      doc.setTextColor(r, g, b);
+      doc.text(row.fn(af, af.markers[k]), x + cw0 + cwN * i + 2, y + 4);
+    });
+    y += rh;
+  });
+
+  // outer border
+  doc.setDrawColor(...th.dividerColor);
+  doc.rect(x, y - rowDefs.length * rh - hh, w, rowDefs.length * rh + hh);
+  return y;
+}
+
+// ================================================================
+//  VO2 THÉORIQUE
+// ================================================================
+let chartVO2Theo = null;
+
+function openVO2Theo() {
+  const af = getActiveFile();
+  if (!af) { alert('Aucun fichier actif.'); return; }
+
+  const p      = af.patient || {};
+  const age    = parseInt(p.age);
+  const poids  = parseFloat(p.poids);
+  const taille = parseFloat(p.taille);
+  const sexe   = p.sexe;
+  const hasAll = !isNaN(age) && !isNaN(poids) && !isNaN(taille) && (sexe === 'M' || sexe === 'F');
+
+  const warnEl  = document.getElementById('vo2theoWarn');
+  const statsEl = document.getElementById('vo2theoStats');
+  document.getElementById('vo2theoSub').textContent = [
+    p.prenom && p.nom ? p.prenom + ' ' + p.nom : af.name,
+    age    ? age + ' ans'    : '',
+    sexe === 'M' ? 'Homme' : sexe === 'F' ? 'Femme' : '',
+    poids  ? poids + ' kg'  : '',
+    taille ? taille + ' cm' : '',
+  ].filter(Boolean).join(' · ');
+
+  if (!hasAll) {
+    warnEl.textContent = '⚠ Informations patient incomplètes — âge, sexe, poids et taille sont requis pour calculer les valeurs théoriques. Rechargez le fichier pour saisir les données patient.';
+    warnEl.classList.add('visible');
+    statsEl.innerHTML = '';
+    document.getElementById('vo2theoModal').classList.add('open');
+    buildVO2TheoChart(af, null);
+    return;
+  }
+  warnEl.classList.remove('visible');
+
+  const pred   = computeVO2Predictions(age, sexe, poids, taille);
+  const active = af.data.filter(r => !r.deleted);
+  const measVO2max = Math.max(...active.map(r => r.vo2 || 0)); // L/min
+  const pct        = Math.round(measVO2max / (pred.vo2max / 1000) * 100);
+  const measRel    = poids > 0 ? (measVO2max * 1000 / poids).toFixed(1) : '—';
+  const pctColor   = pct >= 80 ? '#10b981' : pct >= 60 ? '#f59e0b' : '#ef4444';
+
+  statsEl.innerHTML = [
+    { l:'VO&#8322;max prédit',       v:(pred.vo2max/1000).toFixed(2), u:'L/min',      c:'#10b981' },
+    { l:'VO&#8322;max prédit rel.',   v:(pred.vo2max/poids).toFixed(1),u:'mL/min/kg',  c:'#34d399' },
+    { l:'Limite inf. (80 %)',         v:(pred.lower/1000).toFixed(2),  u:'L/min',      c:'#f97316' },
+    { l:'VO&#8322;max mesuré',        v:measVO2max.toFixed(2),         u:'L/min',      c:'#3b82f6' },
+    { l:'VO&#8322;max mesuré rel.',   v:measRel,                       u:'mL/min/kg',  c:'#60a5fa' },
+    { l:'% prédit atteint',           v:pct + ' %',                    u:'',           c:pctColor  },
+  ].map(s =>
+    '<div class="vo2theo-stat">' +
+      '<div class="vo2theo-stat-label">' + s.l + '</div>' +
+      '<div class="vo2theo-stat-value" style="color:' + s.c + '">' + s.v + '</div>' +
+      '<div class="vo2theo-stat-unit">' + s.u + '</div>' +
+    '</div>'
+  ).join('');
+
+  document.getElementById('vo2theoModal').classList.add('open');
+  // Léger délai pour que le canvas soit rendu avant init Chart.js
+  setTimeout(() => buildVO2TheoChart(af, pred), 30);
+}
+
+function closeVO2Theo() {
+  document.getElementById('vo2theoModal').classList.remove('open');
+  if (chartVO2Theo) { chartVO2Theo.destroy(); chartVO2Theo = null; }
+}
+
+// Wasserman & Hansen 2012 — cycle ergometer predicted values
+function computeVO2Predictions(age, sexe, poids, taille) {
+  let ibw, vo2max;
+  if (sexe === 'M') {
+    ibw    = Math.max(0.79 * taille - 60.7, 40);
+    vo2max = poids <= ibw
+      ? (50.72 - 0.372 * age) * poids
+      : (50.72 - 0.372 * age) * ibw + 6 * (poids - ibw);
+  } else {
+    ibw    = Math.max(0.65 * taille - 42.8, 35);
+    vo2max = poids <= ibw
+      ? (22.78 - 0.17 * age) * poids
+      : (22.78 - 0.17 * age) * ibw + 6 * (poids - ibw);
+  }
+  vo2max = Math.max(vo2max, 400); // plancher de sécurité (mL/min)
+  return {
+    vo2max,                    // mL/min — 100 % prédit
+    lower: vo2max * 0.80,      // 80 % — limite inférieure normale
+    upper: vo2max * 1.20,      // 120 % — limite supérieure
+    // VO2 sous-maximal théorique au cycle (Wasserman) en mL/min
+    submax: W => 10.3 * W + 5.8 * poids + 151,
+  };
+}
+
+// Moyenne élaguée à 20 % (10 % de chaque côté) par palier de watts
+function buildTrimmedMeansByWatts(data) {
+  const groups = {};
+  data.forEach(r => {
+    if (r.deleted || r.charge === null || r.vo2 === null) return;
+    const key = r.charge;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r.vo2);
+  });
+  return Object.entries(groups)
+    .map(([w, vals]) => {
+      const sorted  = [...vals].sort((a, b) => a - b);
+      const cut     = Math.floor(sorted.length * 0.10);   // 10 % de chaque côté
+      const trimmed = sorted.length >= 5
+        ? sorted.slice(cut, sorted.length - cut)
+        : sorted;
+      const mean = trimmed.reduce((s, v) => s + v, 0) / trimmed.length;
+      return { x: +w, y: mean };
+    })
+    .sort((a, b) => a.x - b.x);
+}
+
+function buildVO2TheoChart(af, pred) {
+  const ctx = document.getElementById('chartVO2Theo').getContext('2d');
+  if (chartVO2Theo) { chartVO2Theo.destroy(); chartVO2Theo = null; }
+
+  // Restriction aux marqueurs de zone si posés
+  const wIdx = af.markers.warmup;
+  const eIdx = af.markers.effort_end;
+  const hasZone = wIdx !== null || eIdx !== null;
+  const fromIdx = wIdx !== null ? wIdx : 0;
+  const toIdx   = eIdx !== null ? eIdx : af.data.length - 1;
+  const rangedData = af.data.slice(fromIdx, toIdx + 1);
+
+  // Mise à jour du label de zone dans le sous-titre
+  const zoneInfoEl = document.getElementById('vo2theoZoneInfo');
+  if (zoneInfoEl) {
+    if (hasZone) {
+      const wLabel = wIdx !== null ? (af.data[wIdx]?.time || 'Fin Échauff.') : 'début';
+      const eLabel = eIdx !== null ? (af.data[eIdx]?.time || 'Fin Épreuve')  : 'fin';
+      zoneInfoEl.textContent = ' · Zone épreuve : ' + wLabel + ' → ' + eLabel;
+    } else {
+      zoneInfoEl.textContent = '';
+    }
+  }
+
+  // VO₂ mesuré : moyenne élaguée 20 % par niveau de watts (zone épreuve uniquement)
+  const pts = buildTrimmedMeansByWatts(rangedData);
+
+  const datasets = [{
+    label: 'VO₂ mesuré (moy. élaguée 20 % / palier)',
+    data: pts,
+    borderColor: '#3b82f6',
+    backgroundColor: '#3b82f618',
+    borderWidth: 2.5,
+    pointRadius: 4,
+    pointHoverRadius: 6,
+    pointBackgroundColor: '#3b82f6',
+    fill: false,
+    tension: 0.35,
+    spanGaps: true,
+    order: 1,
+  }];
+
+  if (pred) {
+    const minW  = pts.length ? Math.min(...pts.map(p => p.x)) : 0;
+    const maxW  = pts.length ? Math.max(...pts.map(p => p.x)) : 10;
+    const steps = 60;
+    const ws    = Array.from({ length: steps + 1 }, (_, i) => minW + (i * (maxW - minW)) / steps);
+
+    // Bande ±20 % autour de la courbe sous-maximale théorique
+    const theoLower = ws.map(w => ({ x: w, y: pred.submax(w) * 0.80 / 1000 }));
+    const theoUpper = ws.map(w => ({ x: w, y: pred.submax(w) * 1.20 / 1000 }));
+    const theoMean  = ws.map(w => ({ x: w, y: pred.submax(w)        / 1000 }));
+
+    // Lignes horizontales VO2max prédit
+    const hLine = (y) => [{ x: minW, y }, { x: maxW, y }];
+
+    datasets.push(
+      // ── Bande ──
+      { // borne basse (anchor du fill)
+        label: 'Zone théorique −20 %',
+        data: theoLower,
+        borderColor: '#10b98155',
+        borderWidth: 1,
+        borderDash: [3, 3],
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+        order: 5,
+      },
+      { // borne haute → remplit vers dataset précédent (basse)
+        label: 'Zone théorique +20 %',
+        data: theoUpper,
+        borderColor: '#10b98155',
+        backgroundColor: '#10b98118',
+        borderWidth: 1,
+        borderDash: [3, 3],
+        pointRadius: 0,
+        fill: '-1',
+        tension: 0,
+        order: 5,
+      },
+      // ── Courbe théorique moyenne ──
+      {
+        label: 'VO₂ théo. sous-maximal (Wasserman)',
+        data: theoMean,
+        borderColor: '#10b981',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        borderDash: [8, 4],
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+        order: 3,
+      },
+      // ── VO2max prédit 100 % ──
+      {
+        label: 'VO₂max prédit (100 %)',
+        data: hLine(pred.vo2max / 1000),
+        borderColor: '#f59e0b',
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        borderDash: [6, 3],
+        pointRadius: 0,
+        fill: false,
+        order: 2,
+      },
+    );
+  }
+
+  const t = getChartTheme();
+  chartVO2Theo = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 250 },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: { color: t.legendColor, font:{ size:9 }, boxWidth:18, padding:10 },
+        },
+        tooltip: {
+          backgroundColor: t.tooltipBg, borderColor: t.tooltipBdr, borderWidth:1,
+          titleColor: t.tooltipTtl, bodyColor: t.tooltipBdy,
+          callbacks: {
+            label: item => {
+              const v = item.raw && item.raw.y !== undefined ? item.raw.y : item.raw;
+              return ' ' + item.dataset.label + ' : ' + Number(v).toFixed(2) + ' L/min';
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: { display:true, text:'Charge (W)', color: t.tickColor, font:{ size:10 } },
+          ticks: { color: t.tickColor, font:{ size:10 } },
+          grid:  { color: t.gridColor }
+        },
+        y: {
+          title: { display:true, text:'VO₂ (L/min)', color: t.tickColor, font:{ size:10 } },
+          ticks: { color: t.tickColor, font:{ size:10 } },
+          grid:  { color: t.gridColor }
+        }
+      }
+    }
+  });
+}
+
+// ================================================================
+//  DRAG DES MARQUEURS
+// ================================================================
+function findMarkerAtPixel(chart, clientX, clientY) {
+  const { scales, chartArea } = chart;
+  if (!scales.x || !chartArea) return null;
+  const rect = chart.canvas.getBoundingClientRect();
+  const xPx  = clientX - rect.left;
+  const yPx  = clientY - rect.top;
+  // Accepte aussi les clics sur les labels pills en haut (chartArea.top peut être ~30px)
+  if (yPx < chartArea.top - 20 || yPx > chartArea.bottom + 4) return null;
+  const HIT = 14; // pixels de tolérance
+
+  let bestHit  = null;
+  let bestDist = Infinity;
+
+  for (const file of loadedFiles) {
+    if (!file.visible) continue;
+    for (const [key, idx] of Object.entries(file.markers)) {
+      if (idx === null) continue;
+      const r    = file.data[idx];
+      const xVal = xAxisMode === 'time' ? r.time_s : r.charge;
+      if (xVal == null) continue;
+      const px = scales.x.getPixelForValue(xVal);
+      // Ignorer les marqueurs hors de la zone visible
+      if (px < chartArea.left - HIT || px > chartArea.right + HIT) continue;
+      const dist = Math.abs(px - xPx);
+      if (dist <= HIT && dist < bestDist) {
+        bestDist = dist;
+        bestHit  = { fileId: file.id, key };
+      }
+    }
+  }
+  return bestHit;
+}
+
+function initMarkerDrag() {
+  Object.values(charts).forEach(chart => {
+    const canvas = chart.canvas;
+
+    // ---- mousedown : démarrer le glisser si on est sur un marqueur ----
+    canvas.addEventListener('mousedown', e => {
+      if (activeMarker) return; // mode placement prioritaire
+      const hit = findMarkerAtPixel(chart, e.clientX, e.clientY);
+      if (!hit) return;
+      e.preventDefault();
+      draggingMarker    = { ...hit, chart };
+      wasDraggingMarker = false;
+      document.body.style.cursor = 'grabbing';
+    });
+
+    // ---- mousemove sur le canvas : curseur "grab" + label au survol ----
+    canvas.addEventListener('mousemove', e => {
+      if (draggingMarker || activeMarker) return;
+      const hit = findMarkerAtPixel(chart, e.clientX, e.clientY);
+      canvas.style.cursor = hit ? 'grab' : '';
+      const tip = document.getElementById('markerDragTip');
+      if (hit) {
+        const col = MARKER_COLORS[hit.key];
+        tip.textContent = MARKER_LABELS[hit.key];
+        tip.style.color       = col;
+        tip.style.borderColor = col;
+        tip.style.left        = e.clientX + 'px';
+        tip.style.top         = e.clientY + 'px';
+        tip.style.display     = 'block';
+      } else {
+        tip.style.display = 'none';
+      }
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+      if (!draggingMarker && !activeMarker) canvas.style.cursor = '';
+      document.getElementById('markerDragTip').style.display = 'none';
+    });
+  });
+
+  // ---- mousemove global : déplacer le marqueur ----
+  document.addEventListener('mousemove', e => {
+    if (!draggingMarker) return;
+    const ch     = draggingMarker.chart;
+    const rect   = ch.canvas.getBoundingClientRect();
+    const xPx    = e.clientX - rect.left;
+    const xVal   = ch.scales.x.getValueForPixel(xPx);
+    const file   = loadedFiles.find(f => f.id === draggingMarker.fileId);
+    if (!file) return;
+    let bestIdx = 0, bestDiff = Infinity;
+    file.data.forEach((r, i) => {
+      if (r.deleted) return;
+      const rv = xAxisMode === 'time' ? r.time_s : r.charge;
+      if (rv === null) return;
+      const d = Math.abs(rv - xVal);
+      if (d < bestDiff) { bestDiff = d; bestIdx = i; }
+    });
+    if (file.markers[draggingMarker.key] !== bestIdx) {
+      file.markers[draggingMarker.key] = bestIdx;
+      Object.values(charts).forEach(c => c.update('none'));
+      updateSummary();
+    }
+  });
+
+  // ---- mouseup global : fin du glisser ----
+  document.addEventListener('mouseup', () => {
+    if (!draggingMarker) return;
+    wasDraggingMarker = true;
+    draggingMarker    = null;
+    document.body.style.cursor = '';
+    document.getElementById('markerDragTip').style.display = 'none';
+    Object.values(charts).forEach(c => { c.canvas.style.cursor = ''; });
+    updateSummary();
+  });
+}
+
+// ================================================================
+//  DÉTECTION AUTOMATIQUE DES SEUILS VENTILATOIRES
+// ================================================================
+
+/* Résidu quadratique d'une régression linéaire sur pts[from..to[ */
+function _segRSS(pts, from, to, xF, yF) {
+  const n = to - from;
+  if (n < 2) return 0;
+  let sX=0,sY=0,sXY=0,sX2=0;
+  for (let i=from;i<to;i++){const x=pts[i][xF],y=pts[i][yF];sX+=x;sY+=y;sXY+=x*y;sX2+=x*x;}
+  const den = n*sX2 - sX*sX;
+  if (Math.abs(den) < 1e-12) return 0;
+  const m=(n*sXY-sX*sY)/den, b=(sY-m*sX)/n;
+  let rss=0;
+  for (let i=from;i<to;i++){const e=pts[i][yF]-(m*pts[i][xF]+b);rss+=e*e;}
+  return rss;
+}
+
+/* Double régression : cherche le breakpoint k∈[from+15%..to-15%] minimisant RSS1+RSS2 */
+function _dualBreak(pts, from, to, xF, yF) {
+  const n = to - from;
+  if (n < 12) return null;
+  const minSeg = Math.max(4, Math.floor(n*0.15));
+  let best=null, bestRSS=Infinity;
+  for (let k=from+minSeg; k<=to-minSeg; k++) {
+    const rss = _segRSS(pts,from,k,xF,yF) + _segRSS(pts,k,to,xF,yF);
+    if (rss < bestRSS) { bestRSS=rss; best=k; }
+  }
+  return best; // indice absolu dans pts[]
+}
+
+/* Lissage par moyenne glissante ±WIN sur un tableau numérique */
+function _smoothArr(arr, WIN) {
+  return arr.map((_,i) => {
+    const lo=Math.max(0,i-WIN), hi=Math.min(arr.length-1,i+WIN);
+    let s=0,c=0;
+    for (let j=lo;j<=hi;j++){s+=arr[j];c++;}
+    return s/c;
+  });
+}
+
+/* Indice du minimum d'un tableau sur [from, to[ */
+function _nadir(arr, from, to) {
+  let best=null, bv=Infinity;
+  for (let i=from;i<to;i++) if (arr[i]<bv){bv=arr[i];best=i;}
+  return best;
+}
+
+function autoDetectThresholds() {
+  const af = getActiveFile();
+  if (!af) { alert('Aucun fichier actif.'); return; }
+
+  const WIN  = Math.max(smoothingWindow, 3);
+  const wIdx = af.markers.warmup     ?? 0;
+  const eIdx = af.markers.effort_end ?? af.data.length - 1;
+
+  // Construction du tableau de travail (valeurs lissées, zone épreuve)
+  const pts = [];
+  for (let i = wIdx; i <= eIdx; i++) {
+    const r = af.data[i];
+    if (r.deleted) continue;
+    const vo2  = getSmoothedValue(af.data, i, 'vo2',  WIN);
+    const vco2 = getSmoothedValue(af.data, i, 'vco2', WIN);
+    const ve   = getSmoothedValue(af.data, i, 've',   WIN);
+    if (!vo2||!vco2||!ve||vo2<=0||vco2<=0||ve<=0) continue;
+    pts.push({ origIdx:i, vo2, vco2, ve, eqO2:ve/vo2, eqCO2:ve/vco2 });
+  }
+
+  const n = pts.length;
+  if (n < 20) {
+    alert('Pas assez de cycles actifs dans la zone d\'épreuve (minimum 20).\nVérifiez les marqueurs Fin Échauff. / Fin Épreuve.');
+    return;
+  }
+
+  // Lissage supplémentaire des équivalents ventilatoires pour la détection des nadirs
+  const sEqO2  = _smoothArr(pts.map(p => p.eqO2),  WIN);
+  const sEqCO2 = _smoothArr(pts.map(p => p.eqCO2), WIN);
+
+  // ── SV1 : trois méthodes indépendantes ──────────────────────────
+  // M1 — V-slope (Beaver 1986) : rupture de régression VCO₂ vs VO₂
+  const m1 = _dualBreak(pts, 0, n, 'vo2', 'vco2');
+
+  // M2 — Nadir VE/VO₂ : minimum de l'équivalent ventilatoire en O₂ (70 % premiers)
+  const m2 = _nadir(sEqO2, 0, Math.floor(n * 0.70));
+
+  // M3 — Rupture VE vs VO₂ : premier inflexion de la ventilation sur les 70 % premiers
+  const m3 = _dualBreak(pts, 0, Math.floor(n * 0.70), 'vo2', 've');
+
+  const sv1Cands = [m1, m2, m3].filter(v => v !== null && v >= 3 && v <= n-4);
+  if (!sv1Cands.length) {
+    alert('SV1 indétectable avec les données actuelles.\nVérifiez la qualité du signal ou les marqueurs de zone.');
+    return;
+  }
+  const sv1 = [...sv1Cands].sort((a,b)=>a-b)[Math.floor(sv1Cands.length/2)]; // médiane
+
+  // ── SV2 : trois méthodes indépendantes ──────────────────────────
+  const sv2From = Math.min(sv1 + Math.max(5, Math.floor(n*0.10)), n-6);
+
+  // M4 — Nadir VE/VCO₂ : minimum de l'équivalent ventilatoire en CO₂ après SV1
+  const m4 = _nadir(sEqCO2, sv2From, n);
+
+  // M5 — Rupture VE vs VCO₂ : point de compensation respiratoire par double régression
+  const m5 = _dualBreak(pts, sv2From, n, 'vco2', 've');
+
+  // M6 — Compensation respiratoire : premier point où EqO₂ ET EqCO₂ montent simultanément
+  let m6 = null;
+  for (let i = sv2From; i < n-4; i++) {
+    if (sEqO2[i+1]>sEqO2[i] && sEqO2[i+2]>sEqO2[i+1] &&
+        sEqCO2[i+1]>sEqCO2[i] && sEqCO2[i+2]>sEqCO2[i+1]) { m6=i; break; }
+  }
+
+  const sv2Cands = [m4, m5, m6].filter(v => v !== null && v > sv1+2 && v <= n-3);
+  if (!sv2Cands.length) {
+    alert('SV2 indétectable avec les données actuelles.\nVérifiez la qualité du signal ou les marqueurs de zone.');
+    return;
+  }
+  const sv2 = [...sv2Cands].sort((a,b)=>a-b)[Math.floor(sv2Cands.length/2)];
+
+  // ── Application des marqueurs ────────────────────────────────────
+  af.markers.sv1 = pts[sv1].origIdx;
+  af.markers.sv2 = pts[sv2].origIdx;
+
+  rebuildAllDatasets();
+  updateSummary();
+
+  // Rapport console (diagnostic)
+  const t1 = af.data[af.markers.sv1]?.time || '';
+  const t2 = af.data[af.markers.sv2]?.time || '';
+  console.info(
+    `[AutoSeuils] SV1=${t1}  (V-slope:${m1} EqO2nadir:${m2} VE/VO2:${m3} → médiane:${sv1})` +
+    `\n[AutoSeuils] SV2=${t2}  (EqCO2nadir:${m4} VE/VCO2:${m5} CompResp:${m6} → médiane:${sv2})`
+  );
+}
+
+// ================================================================
+//  CRITÈRES DE MAXIMALITÉ
+// ================================================================
+function toggleMaxCriteria() {
+  const wrap = document.getElementById('maxCriteriaWrap');
+  const btn  = document.getElementById('maxCriteriaHeader');
+  const open = wrap.style.display !== 'none' && wrap.style.display !== '';
+  wrap.style.display = open ? 'none' : 'block';
+  btn.classList.toggle('open', !open);
+}
+
+function toggleExtraCharts() {
+  const wrap = document.getElementById('extraChartsWrap');
+  const btn  = document.getElementById('extraChartsHeader');
+  const open = wrap.style.display !== 'none' && wrap.style.display !== '';
+  wrap.style.display = open ? 'none' : 'block';
+  btn.classList.toggle('open', !open);
+  // Force un resize des canvas au premier affichage pour Chart.js
+  if (!open) {
+    requestAnimationFrame(() => {
+      EXTRA_CHART_CFGS.forEach(cfg => {
+        const ch = charts[cfg.key];
+        if (ch) ch.resize();
+      });
+    });
+  }
+}
+
+function updateMaxCriteria() {
+  const section = document.getElementById('maxCriteriaSection');
+  const af = getActiveFile();
+  const hasData = af && af.data.some(r => !r.deleted);
+  section.style.display = hasData ? 'block' : 'none';
+  if (!hasData) return;
+
+  const allActive = af.data.filter(r => !r.deleted);
+
+  // Restriction à la zone d'épreuve si marqueurs posés
+  const wTimeS = af.markers.warmup     !== null ? (af.data[af.markers.warmup]?.time_s     ?? null) : null;
+  const eTimeS = af.markers.effort_end !== null ? (af.data[af.markers.effort_end]?.time_s ?? null) : null;
+  const data = allActive.filter(r => {
+    if (wTimeS !== null && r.time_s < wTimeS) return false;
+    if (eTimeS !== null && r.time_s > eTimeS) return false;
+    return true;
+  });
+  const pts = data.length >= 10 ? data : allActive; // fallback si zone trop petite
+
+  const p      = af.patient || {};
+  const age    = parseInt(p.age);
+  const poids  = parseFloat(p.poids);
+  const taille = parseFloat(p.taille);
+  const sexe   = p.sexe;
+  const mean   = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+
+  const criteria = [];
+
+  // ── 1. QR max ≥ 1.10 ──────────────────────────────────────────
+  const qrVals = pts.filter(r => r.vco2 > 0 && r.vo2 > 0).map(r => r.vco2 / r.vo2);
+  const maxQR  = qrVals.length ? Math.max(...qrVals) : null;
+  criteria.push({
+    nom: 'Quotient respiratoire max ≥ 1.10',
+    seuil: '≥ 1.10',
+    valeur: maxQR !== null ? maxQR.toFixed(2) : '—',
+    met: maxQR !== null ? maxQR >= 1.10 : null,
+    ok: maxQR !== null,
+  });
+
+  // ── 2. QR max ≥ 1.15 (critère strict) ─────────────────────────
+  criteria.push({
+    nom: 'QR max ≥ 1.15 (critère strict)',
+    seuil: '≥ 1.15',
+    valeur: maxQR !== null ? maxQR.toFixed(2) : '—',
+    met: maxQR !== null ? maxQR >= 1.15 : null,
+    ok: maxQR !== null,
+  });
+
+  // ── 3. FC max ≥ 90 % FCmax théo (220 − âge) ───────────────────
+  const maxFC = Math.max(...allActive.map(r => r.fc || 0));
+  if (!isNaN(age) && age > 0) {
+    const fcTheo = 220 - age;
+    const fcPct  = (maxFC / fcTheo) * 100;
+    criteria.push({
+      nom: 'FC max ≥ 90 % de la FC théo (220 − âge)',
+      seuil: '≥ ' + Math.round(fcTheo * 0.90) + ' bpm',
+      valeur: Math.round(maxFC) + ' bpm (' + fcPct.toFixed(0) + ' %)',
+      met: fcPct >= 90,
+      ok: true,
+    });
+  } else {
+    criteria.push({
+      nom: 'FC max ≥ 90 % de la FC théo (220 − âge)',
+      seuil: '≥ 90 %', valeur: '—', met: null, ok: false,
+      note: 'Âge patient requis',
+    });
+  }
+
+  // ── 4. Plateau VO₂ : ΔVO₂ < 0.15 L/min entre les 2 derniers paliers ──
+  const byPalierVO2 = {};
+  pts.forEach(r => {
+    if (r.vo2 === null) return;
+    (byPalierVO2[r.palier] = byPalierVO2[r.palier] || []).push(r.vo2);
+  });
+  const validPaliers = Object.keys(byPalierVO2).filter(k => byPalierVO2[k].length >= 3);
+  if (validPaliers.length >= 2) {
+    const m1 = mean(byPalierVO2[validPaliers[validPaliers.length - 2]]);
+    const m2 = mean(byPalierVO2[validPaliers[validPaliers.length - 1]]);
+    const d  = Math.abs(m2 - m1);
+    criteria.push({
+      nom: 'Plateau VO₂ (ΔVO₂ < 0.15 L/min entre les 2 derniers paliers)',
+      seuil: '< 0.15 L/min',
+      valeur: 'Δ ' + Math.round(d * 1000) + ' mL/min',
+      met: d < 0.15,
+      ok: true,
+    });
+  } else {
+    criteria.push({
+      nom: 'Plateau VO₂ (ΔVO₂ < 0.15 L/min entre les 2 derniers paliers)',
+      seuil: '< 0.15 L/min', valeur: '—', met: null, ok: false,
+      note: 'Paliers insuffisants (min. 2 × ≥ 3 cycles)',
+    });
+  }
+
+  // ── 5. Plateau FC : ΔFC < 4 bpm entre les 2 derniers paliers ──
+  const byPalierFC = {};
+  pts.forEach(r => {
+    if (r.fc === null) return;
+    (byPalierFC[r.palier] = byPalierFC[r.palier] || []).push(r.fc);
+  });
+  const validPaliersFC = Object.keys(byPalierFC).filter(k => byPalierFC[k].length >= 2);
+  if (validPaliersFC.length >= 2) {
+    const m1 = mean(byPalierFC[validPaliersFC[validPaliersFC.length - 2]]);
+    const m2 = mean(byPalierFC[validPaliersFC[validPaliersFC.length - 1]]);
+    const d  = Math.abs(m2 - m1);
+    criteria.push({
+      nom: 'Plateau FC (ΔFC < 4 bpm entre les 2 derniers paliers)',
+      seuil: '< 4 bpm',
+      valeur: 'Δ ' + d.toFixed(1) + ' bpm',
+      met: d < 4,
+      ok: true,
+    });
+  } else {
+    criteria.push({
+      nom: 'Plateau FC (ΔFC < 4 bpm entre les 2 derniers paliers)',
+      seuil: '< 4 bpm', valeur: '—', met: null, ok: false,
+      note: 'Paliers insuffisants',
+    });
+  }
+
+  // ── 6. SV2 identifiable ────────────────────────────────────────
+  criteria.push({
+    nom: 'SV2 identifiable (compensation respiratoire atteinte)',
+    seuil: 'Présent',
+    valeur: af.markers.sv2 !== null ? 'Oui' : 'Non',
+    met: af.markers.sv2 !== null,
+    ok: true,
+  });
+
+  // ── 7. VO₂max ≥ 80 % théorique (Wasserman & Hansen 2012) ──────
+  if (!isNaN(age) && !isNaN(poids) && !isNaN(taille) && (sexe==='M'||sexe==='F')) {
+    const pred    = computeVO2Predictions(age, sexe, poids, taille);
+    const measMax = Math.max(...allActive.map(r => r.vo2 || 0));
+    const pct     = (measMax / (pred.vo2max / 1000)) * 100;
+    criteria.push({
+      nom: 'VO₂max ≥ 80 % de la valeur théorique (Wasserman)',
+      seuil: '≥ ' + (pred.lower / 1000).toFixed(2) + ' L/min',
+      valeur: measMax.toFixed(2) + ' L/min (' + pct.toFixed(0) + ' %)',
+      met: pct >= 80,
+      ok: true,
+    });
+  } else {
+    criteria.push({
+      nom: 'VO₂max ≥ 80 % de la valeur théorique (Wasserman)',
+      seuil: '≥ 80 %', valeur: '—', met: null, ok: false,
+      note: 'Données patient requises',
+    });
+  }
+
+  // ── 8. PETCO₂ ↓ en fin d'effort ───────────────────────────────
+  const petcoPts = pts.filter(r => r.petco2 !== null);
+  if (petcoPts.length >= 10) {
+    const cut       = Math.max(2, Math.floor(petcoPts.length * 0.15));
+    const earlyMean = mean(petcoPts.slice(0, cut).map(r => r.petco2));
+    const lateMean  = mean(petcoPts.slice(-cut).map(r => r.petco2));
+    criteria.push({
+      nom: 'PETCO₂ ↓ en fin d\'effort (compensation respiratoire)',
+      seuil: 'Décroissance finale',
+      valeur: earlyMean.toFixed(1) + ' → ' + lateMean.toFixed(1) + ' mmHg',
+      met: lateMean < earlyMean,
+      ok: true,
+    });
+  } else {
+    criteria.push({
+      nom: 'PETCO₂ ↓ en fin d\'effort (compensation respiratoire)',
+      seuil: 'Décroissance finale', valeur: '—', met: null, ok: false,
+      note: petcoPts.length > 0 ? 'Données insuffisantes' : 'Données PETCO₂ requises',
+    });
+  }
+
+  // ── Score + rendu ──────────────────────────────────────────────
+  const availCrit = criteria.filter(c => c.ok);
+  const metCrit   = criteria.filter(c => c.met === true);
+  const ratio     = availCrit.length ? metCrit.length / availCrit.length : 0;
+  const scoreCol  = ratio >= 0.75 ? '#10b981' : ratio >= 0.50 ? '#f59e0b' : '#ef4444';
+
+  const scoreEl = document.getElementById('maxCriteriaScore');
+  scoreEl.textContent = metCrit.length + '/' + availCrit.length + ' critères atteints';
+  scoreEl.style.color = scoreCol;
+
+  let html = '<thead><tr>' +
+    '<th>Critère</th><th>Seuil</th><th>Valeur mesurée</th>' +
+    '<th style="text-align:center;width:60px">Statut</th>' +
+    '</tr></thead><tbody>';
+
+  criteria.forEach(c => {
+    const status  = c.met === null ? '—' : c.met ? '✓' : '✗';
+    const stCls   = c.met === null ? 'crit-unknown' : c.met ? 'crit-ok' : 'crit-fail';
+    html += '<tr>' +
+      '<td class="crit-name">' + c.nom +
+        (c.note ? ' <span class="crit-note">(' + c.note + ')</span>' : '') + '</td>' +
+      '<td class="crit-threshold">' + c.seuil + '</td>' +
+      '<td class="crit-value">'     + c.valeur + '</td>' +
+      '<td class="' + stCls + '">'  + status   + '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody>';
+  document.getElementById('maxCriteriaTable').innerHTML = html;
+}
+
+// ================================================================
+//  THÈME CLAIR / SOMBRE
+// ================================================================
+function getChartTheme() {
+  const isLight = document.body.classList.contains('light');
+  return {
+    tickColor:   isLight ? '#6b7280' : '#475569',
+    gridColor:   isLight ? '#f0f4f8' : '#1a2535',
+    tooltipBg:   isLight ? '#ffffff' : '#1e2535',
+    tooltipBdr:  isLight ? '#e2e8f0' : '#2d3748',
+    tooltipTtl:  isLight ? '#6b7280' : '#94a3b8',
+    tooltipBdy:  isLight ? '#1e293b' : '#e2e8f0',
+    legendColor: '#64748b',
+    defaultColor:      isLight ? '#94a3b8' : '#64748b',
+    defaultBorderColor:isLight ? '#e2e8f0' : '#1e2d3d',
+  };
+}
+
+function applyThemeToCharts(isLight) {
+  const t = getChartTheme();
+  Chart.defaults.color       = t.defaultColor;
+  Chart.defaults.borderColor = t.defaultBorderColor;
+
+  Object.values(charts).forEach(ch => {
+    // Tooltip
+    ch.options.plugins.tooltip.backgroundColor = t.tooltipBg;
+    ch.options.plugins.tooltip.borderColor     = t.tooltipBdr;
+    ch.options.plugins.tooltip.titleColor      = t.tooltipTtl;
+    ch.options.plugins.tooltip.bodyColor       = t.tooltipBdy;
+    // Scales
+    ch.options.scales.x.ticks.color = t.tickColor;
+    ch.options.scales.x.grid.color  = t.gridColor;
+    ch.options.scales.y.ticks.color = t.tickColor;
+    ch.options.scales.y.grid.color  = t.gridColor;
+    // Axe droit du graphique combo (y1)
+    if (ch.options.scales.y1) {
+      ch.options.scales.y1.ticks.color = t.tickColor;
+      if (ch.options.scales.y1.title) ch.options.scales.y1.title.color = t.tickColor;
+    }
+    if (ch.options.scales.y.title) ch.options.scales.y.title.color = t.tickColor;
+    ch.update('none');
+  });
+
+  // Mise à jour du graphique VO2 théorique si ouvert
+  if (chartVO2Theo) {
+    chartVO2Theo.options.plugins.tooltip.backgroundColor = t.tooltipBg;
+    chartVO2Theo.options.plugins.tooltip.borderColor     = t.tooltipBdr;
+    chartVO2Theo.options.plugins.tooltip.titleColor      = t.tooltipTtl;
+    chartVO2Theo.options.plugins.tooltip.bodyColor       = t.tooltipBdy;
+    chartVO2Theo.options.plugins.legend.labels.color     = t.legendColor;
+    chartVO2Theo.options.scales.x.ticks.color = t.tickColor;
+    chartVO2Theo.options.scales.x.grid.color  = t.gridColor;
+    chartVO2Theo.options.scales.x.title.color = t.tickColor;
+    chartVO2Theo.options.scales.y.ticks.color = t.tickColor;
+    chartVO2Theo.options.scales.y.grid.color  = t.gridColor;
+    chartVO2Theo.options.scales.y.title.color = t.tickColor;
+    chartVO2Theo.update('none');
+  }
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  const btn = document.getElementById('themeToggle');
+  btn.innerHTML = isLight ? '&#9790; Sombre' : '&#9728; Clair';
+  applyThemeToCharts(isLight);
+  try { localStorage.setItem('vo2-theme', isLight ? 'light' : 'dark'); } catch(e) {}
+}
+
+function initTheme() {
+  let saved;
+  try { saved = localStorage.getItem('vo2-theme'); } catch(e) {}
+  const isLight = saved !== null ? saved === 'light' : true; // clair par défaut
+  document.body.classList.toggle('light', isLight);
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.innerHTML = isLight ? '&#9790; Sombre' : '&#9728; Clair';
+  // applyThemeToCharts sera appelé après initCharts()
+}
+
+initDropZone();
+initCharts();
+initMarkerDrag();
+initTheme();
+applyThemeToCharts(document.body.classList.contains('light'));
+</script>
+</body>
+</html>
