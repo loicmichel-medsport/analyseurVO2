@@ -36,30 +36,6 @@
     #fileInput{display:none}
 
     /* ---- File list ---- */
-    #fileList{
-      display:flex;flex-wrap:wrap;gap:8px;
-      max-width:1400px;margin:0 auto 16px;align-items:center
-    }
-    .file-pill{
-      display:inline-flex;align-items:center;gap:7px;
-      padding:5px 10px 5px 8px;border-radius:20px;border:2px solid;
-      cursor:pointer;font-size:.8rem;font-weight:600;transition:all .15s;
-      background:transparent;user-select:none
-    }
-    .file-pill.active{background:var(--fc) !important;color:#0f1117 !important;border-color:var(--fc) !important}
-    .file-pill .pill-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-    .file-pill .pill-eye{
-      width:18px;height:18px;display:flex;align-items:center;justify-content:center;
-      border-radius:50%;font-size:.7rem;opacity:.6;margin-left:2px
-    }
-    .file-pill .pill-eye:hover{opacity:1;background:rgba(255,255,255,.15)}
-    .file-pill.hidden-file{opacity:.4}
-    .file-pill .pill-remove{
-      width:16px;height:16px;display:flex;align-items:center;justify-content:center;
-      border-radius:50%;font-size:.65rem;opacity:.5;margin-left:1px
-    }
-    .file-pill .pill-remove:hover{opacity:1;background:rgba(239,68,68,.3)}
-
     /* ---- Stats ---- */
     .stats-row{
       display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
@@ -776,21 +752,18 @@
 
 <header>
   <h1>VO₂ — Analyse Épreuve d’Effort</h1>
-  <p>Chargez un ou plusieurs fichiers CSV pour visualiser et comparer les résultats</p>
+  <p>Chargez un fichier CSV pour visualiser les résultats de l'épreuve d'effort</p>
 </header>
 
 <!-- Drop zone -->
-<div id="dropZone" onclick="document.getElementById('fileInput').click()">
+<div id="dropZone" onclick="requestLoadFile(event)">
   <div id="dropContent">
     <div class="drop-icon">&#128196;</div>
-    <div class="drop-title">Glissez vos fichiers CSV ici</div>
-    <div class="drop-sub">ou cliquez pour sélectionner — plusieurs fichiers acceptés</div>
+    <div class="drop-title">Glissez votre fichier CSV ici</div>
+    <div class="drop-sub">ou cliquez pour sélectionner un fichier</div>
   </div>
-  <input type="file" id="fileInput" accept=".txt,.csv" multiple>
+  <input type="file" id="fileInput" accept=".txt,.csv">
 </div>
-
-<!-- File list -->
-<div id="fileList"></div>
 
 <!-- Main content (hidden until file loaded) -->
 <div id="mainContent" class="hidden-section">
@@ -1475,7 +1448,6 @@ function addFiles(fileList) {
     activeFileId = id;
     document.getElementById('mainContent').classList.remove('hidden-section');
     rebuildDropZone();
-    rebuildFileList();
     rebuildAllDatasets();
     updateStats();
     updatePalierLegend();
@@ -1485,39 +1457,6 @@ function addFiles(fileList) {
     showPatientModal(obj);
   };
   reader.readAsText(file, 'latin1');
-}
-
-function removeFile(id) {
-  const idx = loadedFiles.findIndex(f => f.id === id);
-  if (idx < 0) return;
-  loadedFiles.splice(idx, 1);
-  if (activeFileId === id) activeFileId = loadedFiles.length ? loadedFiles[0].id : null;
-  if (!loadedFiles.length) {
-    document.getElementById('mainContent').classList.add('hidden-section');
-    rebuildDropZone();
-  }
-  rebuildFileList();
-  rebuildAllDatasets();
-  updateStats();
-  updatePalierLegend();
-  updateMarkerUI();
-  updateSummary();
-}
-
-function toggleVisibility(id) {
-  const f = loadedFiles.find(f => f.id === id);
-  if (f) { f.visible = !f.visible; rebuildFileList(); rebuildAllDatasets(); }
-}
-
-function setActiveFile(id) {
-  activeFileId = id;
-  rebuildFileList();
-  rebuildAllDatasets();
-  updateStats();
-  updatePalierLegend();
-  updateMarkerUI();
-  updateSummary();
-  buildDataTable();
 }
 
 // ================================================================
@@ -2473,24 +2412,12 @@ function updateStats() {
 // ================================================================
 //  FILE LIST & PALIER LEGEND UI
 // ================================================================
-function rebuildFileList() {
-  const wrap = document.getElementById('fileList');
-  if (!loadedFiles.length) { wrap.innerHTML = ''; return; }
-  const f = loadedFiles[0];
-  const style = '--fc:' + f.color + ';border-color:' + f.color + ';color:' + f.color;
-  wrap.innerHTML = '<div class="file-pill active" style="' + style + '">' +
-    '<div class="pill-dot" style="background:#0f1117"></div>' +
-    '<span>' + f.name + '</span>' +
-    '<span class="pill-remove" data-fid="' + f.id + '" onclick="event.stopPropagation();removeFile(this.dataset.fid)" title="Fermer">✕</span>' +
-  '</div>';
-}
-
 function rebuildDropZone() {
   const zone = document.getElementById('dropZone');
   const content = document.getElementById('dropContent');
   if (loadedFiles.length > 0) {
     zone.classList.add('has-files');
-    content.innerHTML = '<button class="add-more" onclick="document.getElementById(&quot;fileInput&quot;).click()">&#8635; Changer d\'&eacute;preuve</button>';
+    content.innerHTML = '<button class="add-more">&#8635; Charger une nouvelle &eacute;preuve</button>';
   } else {
     zone.classList.remove('has-files');
     content.innerHTML = '<div class="drop-icon">&#128196;</div>' +
@@ -2515,6 +2442,19 @@ function updatePalierLegend() {
 // ================================================================
 //  DROP ZONE
 // ================================================================
+function confirmDiscardCurrentEpreuve() {
+  if (!loadedFiles.length) return true;
+  return confirm("Charger une nouvelle épreuve effacera les données actuellement chargées (graphiques, marqueurs, informations patient). Continuer ?");
+}
+
+function requestLoadFile(e) {
+  if (e) e.stopPropagation();
+  // Le sélecteur de fichier doit s'ouvrir directement dans le geste utilisateur :
+  // un confirm() avant le .click() bloque l'ouverture du dialogue dans certains navigateurs.
+  // La confirmation est donc demandée après sélection du fichier.
+  document.getElementById('fileInput').click();
+}
+
 function initDropZone() {
   const zone  = document.getElementById('dropZone');
   const input = document.getElementById('fileInput');
@@ -2523,9 +2463,16 @@ function initDropZone() {
   zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
   zone.addEventListener('drop', e => {
     e.preventDefault(); zone.classList.remove('dragover');
+    if (!e.dataTransfer.files.length) return;
+    if (!confirmDiscardCurrentEpreuve()) return;
     addFiles(e.dataTransfer.files);
   });
-  input.addEventListener('change', () => { if (input.files.length) addFiles(input.files); input.value=''; });
+  input.addEventListener('change', () => {
+    if (!input.files.length) { input.value = ''; return; }
+    if (!confirmDiscardCurrentEpreuve()) { input.value = ''; return; }
+    addFiles(input.files);
+    input.value = '';
+  });
 }
 
 // ================================================================
@@ -3000,7 +2947,6 @@ function confirmPatient() {
   rebuildAllDatasets();
   updateStats();
   updatePatientProfileUI();
-  rebuildFileList();
   processNextPatient();
 }
 
