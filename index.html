@@ -370,6 +370,37 @@
     body.light .epdf-prev-separator{color:#d1d5db;border-color:#e2e8f0}
     body.light .epdf-prev-size-lbl{color:#d1d5db}
 
+    /* ---- Compte rendu textuel (export) ---- */
+    .epdf-cr-section{margin-top:18px;border-top:1px solid #2d3748;padding-top:14px}
+    .epdf-cr-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+    .epdf-cr-header-chk{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
+    .epdf-cr-header-chk label{font-size:.82rem;font-weight:600;color:#cbd5e1;cursor:pointer}
+    .epdf-cr-header-chk input[type=checkbox]{width:13px;height:13px;accent-color:#3b82f6;cursor:pointer}
+    .epdf-cr-gen-btn{
+      padding:4px 12px;border-radius:8px;border:1.5px solid #3b82f6;
+      background:transparent;color:#3b82f6;font-size:.75rem;font-weight:600;
+      cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0
+    }
+    .epdf-cr-gen-btn:hover{background:#3b82f620}
+    .epdf-cr-body{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:640px){.epdf-cr-body{grid-template-columns:1fr}}
+    .epdf-cr-block{display:flex;flex-direction:column;gap:5px}
+    .epdf-cr-label{
+      font-size:.69rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b
+    }
+    .epdf-cr-ta{
+      background:#141925;border:1.5px solid #2d3748;border-radius:8px;
+      color:#cbd5e1;font-size:.78rem;line-height:1.55;padding:8px 10px;
+      resize:vertical;min-height:90px;font-family:inherit;
+      transition:border-color .15s;width:100%;box-sizing:border-box
+    }
+    .epdf-cr-ta:focus{outline:none;border-color:#3b82f680}
+    .epdf-cr-section.cr-disabled .epdf-cr-body{opacity:.4;pointer-events:none}
+    body.light .epdf-cr-section{border-top-color:#e2e8f0}
+    body.light .epdf-cr-header-chk label{color:#374151}
+    body.light .epdf-cr-ta{background:#f8fafc;border-color:#e2e8f0;color:#374151}
+    body.light .epdf-cr-ta:focus{border-color:#3b82f680}
+
     /* ---- X-axis ---- */
     .xaxis-ctrl{
       display:flex;gap:4px;justify-content:center;
@@ -520,6 +551,13 @@
       background:transparent;color:#94a3b8;cursor:pointer;font-size:.85rem;transition:all .15s
     }
     .modal-skip:hover{border-color:#e2e8f0;color:#e2e8f0}
+    .modal-debug{
+      padding:8px 14px;border-radius:10px;border:1.5px dashed #f59e0b;
+      background:transparent;color:#f59e0b;cursor:pointer;font-size:.78rem;transition:all .15s;margin-right:auto
+    }
+    .modal-debug:hover{background:#f59e0b18}
+    body.light .modal-debug{border-color:#d97706;color:#d97706}
+    body.light .modal-debug:hover{background:#d9770610}
     .modal-confirm{
       padding:8px 22px;border-radius:10px;border:none;
       background:#3b82f6;color:#fff;cursor:pointer;font-size:.85rem;font-weight:600;
@@ -1155,6 +1193,35 @@
 
     </div>
 
+    <!-- ── Compte rendu textuel ─────────────────────────── -->
+    <div class="epdf-cr-section" id="epdfCrSection">
+      <div class="epdf-cr-header">
+        <div class="epdf-cr-header-chk">
+          <input type="checkbox" id="epdfChkCR" checked onchange="epdfToggleCR()">
+          <label for="epdfChkCR">Compte rendu textuel</label>
+        </div>
+        <button class="epdf-cr-gen-btn" onclick="generateCompteRendu()">&#9889; Générer automatiquement</button>
+      </div>
+      <div class="epdf-cr-body" id="epdfCrBody">
+        <div class="epdf-cr-block">
+          <div class="epdf-cr-label">Interprétabilité de l'épreuve</div>
+          <textarea id="epdfCrInterp" class="epdf-cr-ta" placeholder="Cliquez sur « Générer automatiquement » ou saisissez votre texte…"></textarea>
+        </div>
+        <div class="epdf-cr-block">
+          <div class="epdf-cr-label">Analyse cardiaque</div>
+          <textarea id="epdfCrCard" class="epdf-cr-ta" placeholder="Cliquez sur « Générer automatiquement » ou saisissez votre texte…"></textarea>
+        </div>
+        <div class="epdf-cr-block">
+          <div class="epdf-cr-label">Analyse ventilatoire</div>
+          <textarea id="epdfCrVent" class="epdf-cr-ta" placeholder="Cliquez sur « Générer automatiquement » ou saisissez votre texte…"></textarea>
+        </div>
+        <div class="epdf-cr-block">
+          <div class="epdf-cr-label">Seuils ventilatoires</div>
+          <textarea id="epdfCrSeuils" class="epdf-cr-ta" placeholder="Cliquez sur « Générer automatiquement » ou saisissez votre texte…"></textarea>
+        </div>
+      </div>
+    </div>
+
     <div class="epdf-footer">
       <button class="epdf-cancel-btn"  onclick="closeExportModal()">Annuler</button>
       <button class="epdf-confirm-btn" onclick="generatePDFFromForm()">&#11015; Générer PDF</button>
@@ -1262,6 +1329,7 @@
       </div>
     </div>
     <div class="modal-actions">
+      <button class="modal-debug" onclick="debugFillPatient()">&#128295; Auto-remplissage</button>
       <button class="modal-skip" onclick="skipPatient()">Ignorer</button>
       <button class="modal-confirm" onclick="confirmPatient()">Confirmer</button>
     </div>
@@ -2957,6 +3025,20 @@ function skipPatient() {
   processNextPatient();
 }
 
+function debugFillPatient() {
+  document.getElementById('pt-nom').value    = 'Dupont';
+  document.getElementById('pt-prenom').value = 'Jean';
+  document.getElementById('pt-age').value    = '35';
+  document.getElementById('pt-sexe').value   = 'M';
+  document.getElementById('pt-taille').value = '178';
+  document.getElementById('pt-poids').value  = '75';
+  document.getElementById('pt-date').value   = new Date().toISOString().slice(0, 10);
+  document.getElementById('pt-profil').value = 'sportif';
+  document.getElementById('pt-lactate').value = '8.5';
+  document.getElementById('pt-vems').value   = '4.20';
+  updateVEMSHint();
+}
+
 // ================================================================
 //  PDF EXPORT — MODAL
 // ================================================================
@@ -3255,6 +3337,11 @@ function _buildPDF(af) {
     }
   }
 
+  // ---- Compte rendu textuel ----
+  if (document.getElementById('epdfChkCR')?.checked) {
+    y = _pdfDrawCompteRendu(doc, af, margin, y, W, usableW, th);
+  }
+
   // ---- Seuils ventilatoires ----
   if (document.getElementById('epdfTblSeuils').checked) {
     const anyMk = Object.values(af.markers).some(v => v !== null);
@@ -3293,6 +3380,363 @@ function _buildPDF(af) {
     p.nom    ? p.nom.toUpperCase().replace(/\s+/g, '_') : '',
   ].filter(Boolean).join('_') || af.name.replace(/\s+/g, '_');
   doc.save(fname + '_VO2.pdf');
+}
+
+// ================================================================
+//  COMPTE RENDU TEXTUEL
+// ================================================================
+
+function epdfToggleCR() {
+  const on = document.getElementById('epdfChkCR').checked;
+  document.getElementById('epdfCrSection').classList.toggle('cr-disabled', !on);
+}
+
+function generateCompteRendu() {
+  const af = getActiveFile(); if (!af) return;
+  document.getElementById('epdfCrInterp').value  = _crInterpretabilite(af);
+  document.getElementById('epdfCrCard').value    = _crCardiaque(af);
+  document.getElementById('epdfCrVent').value    = _crVentilatoire(af);
+  document.getElementById('epdfCrSeuils').value  = _crSeuils(af);
+}
+
+// ---- Helpers ----
+function _crFv(v, dec) {
+  return (v !== null && v !== undefined && !isNaN(v)) ? Number(v).toFixed(dec) : '—';
+}
+
+function _crMkData(af, key) {
+  const idx = af.markers[key];
+  if (idx === null || idx === undefined) return null;
+  const r = af.data[idx]; if (!r) return null;
+  const eqo2  = (r.vo2  > 0) ? r.ve / r.vo2  : null;
+  const eqco2 = (r.vco2 > 0) ? r.ve / r.vco2 : null;
+  const vo2maxVal = _crGetVO2Max(af);
+  const pctVo2max = (vo2maxVal > 0 && r.vo2 > 0) ? (r.vo2 / vo2maxVal * 100) : null;
+  return { time: r.time, time_s: r.time_s, charge: r.charge, fc: r.fc, vo2: r.vo2,
+           vco2: r.vco2, ve: r.ve, fr: r.fr, eqo2, eqco2, palier: r.palier, pctVo2max };
+}
+
+function _crGetVO2Max(af) {
+  const active = af.data.filter(r => !r.deleted);
+  return Math.max(...active.map(r => r.vo2 || 0));
+}
+
+function _crComputeCriteria(af) {
+  const allActive = af.data.filter(r => !r.deleted);
+  const wTimeS = af.markers.warmup !== null ? (af.data[af.markers.warmup]?.time_s ?? null) : null;
+  const eTimeS = af.markers.effort_end !== null ? (af.data[af.markers.effort_end]?.time_s ?? null) : null;
+  const zone = allActive.filter(r => {
+    if (wTimeS !== null && r.time_s < wTimeS) return false;
+    if (eTimeS !== null && r.time_s > eTimeS) return false;
+    return true;
+  });
+  const pts  = zone.length >= 10 ? zone : allActive;
+  const p    = af.patient || {};
+  const age  = parseInt(p.age);
+  const poids  = parseFloat(p.poids);
+  const taille = parseFloat(p.taille);
+  const sexe   = p.sexe;
+  const mean   = arr => arr.reduce((s, v) => s + v, 0) / arr.length;
+  const cr = [];
+
+  const qrV   = pts.filter(r => r.vco2 > 0 && r.vo2 > 0).map(r => r.vco2 / r.vo2);
+  const maxQR = qrV.length ? Math.max(...qrV) : null;
+  cr.push({ nom: 'QR max ≥ 1.10',           met: maxQR !== null ? maxQR >= 1.10 : null });
+  cr.push({ nom: 'QR max ≥ 1.15 (strict)',   met: maxQR !== null ? maxQR >= 1.15 : null });
+
+  const mFC = Math.max(...allActive.map(r => r.fc || 0));
+  if (!isNaN(age) && age > 0) {
+    cr.push({ nom: 'FC max ≥ 90 % FCthéo', met: (mFC / (220 - age) * 100) >= 90 });
+  } else {
+    cr.push({ nom: 'FC max ≥ 90 % FCthéo', met: null });
+  }
+
+  const bpV2 = {};
+  pts.forEach(r => { if (r.vo2 !== null) (bpV2[r.palier] = bpV2[r.palier] || []).push(r.vo2); });
+  const vpV2 = Object.keys(bpV2).filter(k => bpV2[k].length >= 3);
+  if (vpV2.length >= 2) {
+    const dv = Math.abs(mean(bpV2[vpV2[vpV2.length-1]]) - mean(bpV2[vpV2[vpV2.length-2]]));
+    cr.push({ nom: 'Plateau VO₂', met: dv < 0.15 });
+  } else { cr.push({ nom: 'Plateau VO₂', met: null }); }
+
+  const bpFC = {};
+  pts.forEach(r => { if (r.fc !== null) (bpFC[r.palier] = bpFC[r.palier] || []).push(r.fc); });
+  const vpFC = Object.keys(bpFC).filter(k => bpFC[k].length >= 2);
+  if (vpFC.length >= 2) {
+    const df = Math.abs(mean(bpFC[vpFC[vpFC.length-1]]) - mean(bpFC[vpFC[vpFC.length-2]]));
+    cr.push({ nom: 'Plateau FC', met: df < 4 });
+  } else { cr.push({ nom: 'Plateau FC', met: null }); }
+
+  cr.push({ nom: 'SV2 identifiable', met: af.markers.sv2 !== null });
+
+  if (!isNaN(age) && !isNaN(poids) && !isNaN(taille) && (sexe === 'M' || sexe === 'F') && typeof computeVO2Predictions === 'function') {
+    const pred = computeVO2Predictions(age, sexe, poids, taille);
+    const meas = Math.max(...allActive.map(r => r.vo2 || 0));
+    cr.push({ nom: 'VO₂max ≥ 80 % théo', met: (meas / (pred.vo2max / 1000) * 100) >= 80 });
+  } else { cr.push({ nom: 'VO₂max ≥ 80 % théo', met: null }); }
+
+  const petco2 = allActive.map(r => r.petco2).filter(v => v !== null && v !== undefined);
+  if (petco2.length >= 4) {
+    const tail = petco2.slice(-Math.min(10, Math.floor(petco2.length * 0.2)));
+    const last3 = petco2.slice(-3);
+    const trend = last3[last3.length-1] - last3[0];
+    cr.push({ nom: 'PETCO₂ ↓ fin d\'effort', met: trend < 0 });
+  } else { cr.push({ nom: 'PETCO₂ ↓ fin d\'effort', met: null }); }
+
+  return cr;
+}
+
+// ---- Section 1 : Interprétabilité ----
+function _crInterpretabilite(af) {
+  const p = af.patient || {};
+  const active = af.data.filter(r => !r.deleted);
+  const maxW = Math.max(...active.map(r => r.charge || 0));
+  const dur  = af.data[af.data.length - 1]?.time || '—';
+
+  const cr    = _crComputeCriteria(af);
+  const score = cr.filter(c => c.met === true).length;
+  const total = cr.filter(c => c.met !== null).length;
+
+  const isMax   = score >= 5 && total >= 6;
+  const isSubMax = score <= 3;
+
+  let txt = `Épreuve d'effort cardio-pulmonaire (CPET) d'une durée de ${dur}, atteignant une puissance maximale de ${maxW} W`;
+  if (p.date) txt += ` (${p.date})`;
+  txt += '.\n\n';
+
+  txt += `${score} sur ${total} critères de maximalité évaluables sont satisfaits. `;
+  if (isMax)          txt += `L'épreuve peut être considérée comme maximale.`;
+  else if (isSubMax)  txt += `L'effort semble sous-maximal ou limité avant l'épuisement physiologique.`;
+  else                txt += `L'épreuve est d'intensité intermédiaire ; la maximalité n'est pas formellement atteinte.`;
+
+
+  return txt;
+}
+
+// ---- Section 2 : Analyse cardiaque ----
+function _crCardiaque(af) {
+  const p      = af.patient || {};
+  const age    = parseInt(p.age);
+  const active = af.data.filter(r => !r.deleted);
+  const maxFC  = Math.max(...active.map(r => r.fc || 0));
+  const minSao2 = Math.min(...active.filter(r => r.sao2 > 0).map(r => r.sao2));
+
+  let txt = `Fréquence cardiaque maximale atteinte : ${maxFC.toFixed(0)} bpm`;
+  if (!isNaN(age) && age > 0) {
+    const fcTheo = 220 - age;
+    const pctFC  = (maxFC / fcTheo * 100).toFixed(0);
+    txt += ` (${pctFC} % de la FC théorique de ${fcTheo} bpm pour ${age} ans)`;
+  }
+  txt += '.\n';
+
+  const sv1 = _crMkData(af, 'sv1');
+  const sv2 = _crMkData(af, 'sv2');
+  if (sv1 || sv2) {
+    txt += '\n';
+    if (sv1) {
+      const pct = sv1.pctVo2max !== null ? ` — ${sv1.pctVo2max.toFixed(0)} % de FCmax` : '';
+      txt += `FC au SV1 : ${_crFv(sv1.fc, 0)} bpm (${_crFv(!isNaN(maxFC) ? sv1.fc/maxFC*100 : null, 0)} % de FCmax), à ${sv1.time}, ${sv1.charge} W.\n`;
+    }
+    if (sv2) {
+      txt += `FC au SV2 : ${_crFv(sv2.fc, 0)} bpm (${_crFv(!isNaN(maxFC) ? sv2.fc/maxFC*100 : null, 0)} % de FCmax), à ${sv2.time}, ${sv2.charge} W.\n`;
+    }
+  }
+
+  txt += `\nSaO₂ minimale : ${isFinite(minSao2) ? minSao2.toFixed(1) + ' %' : '—'}. `;
+  if (isFinite(minSao2)) {
+    if (minSao2 < 88)      txt += `Désaturation sévère notée, pouvant évoquer un trouble de l'hématose à l'effort.`;
+    else if (minSao2 < 93) txt += `Désaturation modérée notée au cours de l'épreuve.`;
+    else if (minSao2 < 95) txt += `Légère désaturation notée en fin d'effort.`;
+    else                   txt += `Pas de désaturation significative au cours de l'épreuve.`;
+  }
+
+  return txt;
+}
+
+// ---- Section 3 : Analyse ventilatoire ----
+function _crVentilatoire(af) {
+  const p      = af.patient || {};
+  const active = af.data.filter(r => !r.deleted);
+  const maxVE  = Math.max(...active.map(r => r.ve  || 0));
+  const maxFR  = Math.max(...active.map(r => r.fr  || 0));
+
+  // VMV théorique
+  const profil = p.profil || 'sedentaire';
+  const multVMV = (profil === 'sportif' || profil === 'haut_niveau') ? 40 : 35;
+  const vems    = parseFloat(p.vems);
+  let vmv = null, vemsLabel = '';
+  if (!isNaN(vems) && vems > 0) {
+    vmv = vems * multVMV;
+    vemsLabel = `VEMS mesuré ${vems.toFixed(2)} L`;
+  } else if (typeof computeVO2Predictions === 'function') {
+    const age = parseInt(p.age), sexe = p.sexe, taille = parseFloat(p.taille), poids = parseFloat(p.poids);
+    if (!isNaN(age) && !isNaN(taille) && (sexe === 'M' || sexe === 'F')) {
+      const pred = computeVO2Predictions(age, sexe, poids, taille);
+      vmv = (pred.vems ?? null);
+      if (vmv) { vmv = vmv * multVMV; vemsLabel = `VEMS théorique`; }
+    }
+  }
+
+  let txt = `Ventilation minute maximale : ${maxVE.toFixed(1)} L/min. `;
+  if (vmv) {
+    const br = ((vmv - maxVE) / vmv * 100);
+    txt += `VMV théorique estimée à ${vmv.toFixed(0)} L/min (${vemsLabel} × ${multVMV}). `;
+    txt += `Réserve respiratoire (BR) : ${br.toFixed(0)} %. `;
+    if (br < 15)       txt += `Cette faible réserve peut témoigner d'une limitation ventilatoire.`;
+    else if (br < 30)  txt += `La réserve respiratoire est réduite mais non limitante.`;
+    else               txt += `Absence de limitation ventilatoire.`;
+  }
+
+  txt += `\n\nFréquence respiratoire maximale : ${maxFR.toFixed(0)} c/min.`;
+
+  const sv1 = _crMkData(af, 'sv1');
+  const sv2 = _crMkData(af, 'sv2');
+  if (sv1 || sv2) {
+    txt += '\n';
+    if (sv1 && sv1.eqo2 !== null) {
+      txt += `\nÉquivalents ventilatoires au SV1 : EqO₂ = ${sv1.eqo2.toFixed(1)} / EqCO₂ = ${sv1.eqco2 ? sv1.eqco2.toFixed(1) : '—'}.`;
+    }
+    if (sv2 && sv2.eqo2 !== null) {
+      txt += `\nÉquivalents ventilatoires au SV2 : EqO₂ = ${sv2.eqo2.toFixed(1)} / EqCO₂ = ${sv2.eqco2 ? sv2.eqco2.toFixed(1) : '—'}.`;
+    }
+  }
+
+  return txt;
+}
+
+// ---- Section 4 : Seuils ventilatoires ----
+function _crSeuils(af) {
+  const sv1    = _crMkData(af, 'sv1');
+  const sv2    = _crMkData(af, 'sv2');
+  const vo2max = _crMkData(af, 'vo2max');
+  const vo2MaxVal = _crGetVO2Max(af);
+
+  if (!sv1 && !sv2) return 'Aucun seuil ventilatoire n\'a été positionné sur cette épreuve.';
+
+  let txt = 'Seuils ventilatoires identifiés :\n';
+
+  if (sv1) {
+    const pct = vo2MaxVal > 0 ? ` (${(sv1.vo2 / vo2MaxVal * 100).toFixed(0)} % du VO₂max)` : '';
+    txt += `\nSV1 (1er seuil ventilatoire) : ${sv1.time} — ${sv1.charge} W — VO₂ ${_crFv(sv1.vo2, 2)} L/min${pct} — FC ${_crFv(sv1.fc, 0)} bpm.`;
+  }
+  if (sv2) {
+    const pct = vo2MaxVal > 0 ? ` (${(sv2.vo2 / vo2MaxVal * 100).toFixed(0)} % du VO₂max)` : '';
+    txt += `\nSV2 (seuil de compensation respiratoire) : ${sv2.time} — ${sv2.charge} W — VO₂ ${_crFv(sv2.vo2, 2)} L/min${pct} — FC ${_crFv(sv2.fc, 0)} bpm.`;
+  }
+  if (vo2max) {
+    const pct = vo2MaxVal > 0 ? ` (${(vo2max.vo2 / vo2MaxVal * 100).toFixed(0)} % du VO₂max)` : '';
+    txt += `\nVO₂max : ${vo2max.time} — ${vo2max.charge} W — VO₂ ${_crFv(vo2max.vo2, 2)} L/min — FC ${_crFv(vo2max.fc, 0)} bpm.`;
+  }
+
+  // Seuils lactiques
+  const hasSL = af.lactatePoints && af.lactatePoints.length >= 2;
+  if (hasSL) {
+    const sl1 = _crMkData(af, 'sl1');
+    const sl2 = _crMkData(af, 'sl2');
+    if (sl1 || sl2) {
+      txt += '\n\nCinétique lactique :';
+      // Interpolate lactate value at marker time
+      const lacInterp = (time_s) => {
+        const pts = [...af.lactatePoints].sort((a,b) => a.time_s - b.time_s);
+        for (let i = 0; i < pts.length - 1; i++) {
+          if (time_s >= pts[i].time_s && time_s <= pts[i+1].time_s) {
+            const t = (time_s - pts[i].time_s) / (pts[i+1].time_s - pts[i].time_s);
+            return pts[i].value + t * (pts[i+1].value - pts[i].value);
+          }
+        }
+        return null;
+      };
+      if (sl1) {
+        const lac = lacInterp(sl1.time_s);
+        txt += `\nSL1 (1er seuil lactique) : ${sl1.time} — ${sl1.charge} W${lac !== null ? ` — ${lac.toFixed(1)} mmol/L` : ''}.`;
+      }
+      if (sl2) {
+        const lac = lacInterp(sl2.time_s);
+        txt += `\nSL2 (2e seuil lactique) : ${sl2.time} — ${sl2.charge} W${lac !== null ? ` — ${lac.toFixed(1)} mmol/L` : ''}.`;
+      }
+      // Concordance SV/SL
+      if (sv1 && sl1 && sv2 && sl2) {
+        const dt1 = Math.abs(sv1.time_s - sl1.time_s);
+        const dt2 = Math.abs(sv2.time_s - sl2.time_s);
+        const concord = dt1 < 90 && dt2 < 90;
+        txt += concord
+          ? '\n\nBonne concordance entre les seuils ventilatoires et lactiques.'
+          : '\n\nDiscordance notée entre les seuils ventilatoires et lactiques — à interpréter en contexte clinique.';
+      }
+    }
+  }
+
+  return txt;
+}
+
+// ---- Rendu PDF du compte rendu ----
+function _pdfDrawCompteRendu(doc, af, margin, y, W, usableW, th) {
+  // Replace Unicode chars outside Helvetica's Latin-1 range to avoid width miscalculation
+  const _norm = t => t
+    .replace(/₂/g, '2').replace(/₁/g, '1').replace(/₀/g, '0')
+    .replace(/→/g, '->').replace(/←/g, '<-').replace(/↓/g, 'v').replace(/↑/g, '^')
+    .replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/Δ/g, 'D').replace(/∆/g, 'D')
+    .replace(/²/g, '2').replace(/¹/g, '1');
+
+  const sections = [
+    { id: 'epdfCrInterp',  titre: 'Interpretabilite de l\'epreuve' },
+    { id: 'epdfCrCard',    titre: 'Analyse cardiaque' },
+    { id: 'epdfCrVent',    titre: 'Analyse ventilatoire' },
+    { id: 'epdfCrSeuils',  titre: 'Seuils ventilatoires' },
+  ];
+  const textColor = th.tblText || [55,65,81];
+  const lineH = 4.5;
+  const wrapW = usableW - 3;
+
+  let hasContent = false;
+  sections.forEach(s => { if (document.getElementById(s.id)?.value.trim()) hasContent = true; });
+  if (!hasContent) return y;
+
+  // Page break check before separator + title block
+  if (y + 14 > 285) { doc.addPage(); y = 14; }
+
+  // Separator before CR
+  doc.setDrawColor(...th.dividerColor);
+  doc.line(margin, y, W - margin, y);
+  y += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...th.sectionColor);
+  doc.text('Compte rendu', margin, y);
+  y += 6;
+
+  sections.forEach(s => {
+    const rawTxt = document.getElementById(s.id)?.value.trim();
+    if (!rawTxt) return;
+    const txt = _norm(rawTxt);
+
+    // Section title — ensure at least title + 2 lines fit before drawing
+    if (y + 14 > 285) { doc.addPage(); y = 14; }
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...th.sectionColor);
+    doc.text(s.titre, margin, y);
+    y += 5;
+
+    // Body text
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...textColor);
+    const paragraphs = txt.split('\n');
+    paragraphs.forEach(para => {
+      if (!para.trim()) { y += lineH * 0.5; return; }
+      const lines = doc.splitTextToSize(para, wrapW);
+      lines.forEach(line => {
+        if (y + lineH > 285) { doc.addPage(); y = 14; }
+        doc.text(line, margin, y);
+        y += lineH;
+      });
+    });
+    y += 4;
+  });
+
+  y += 2;
+  return y;
 }
 
 function drawMaxCriteriaTablePDF(doc, af, x, y, w, theme) {
